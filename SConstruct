@@ -14,6 +14,7 @@ env['LINKCOM'] = '$CXX $LINKFLAGS $SOURCES -Wl,--start-group $ARCHIVES $_LIBDIRF
 
 env.ParseConfig('sdl-config --libs --cflags')
 env.ParseConfig('freetype-config --libs --cflags')
+env.ParseConfig('libpng-config --libs --cflags')
 
 env.Append(CPPDEFINES = ['USE_SDL'])
 options = {'sdl': True}
