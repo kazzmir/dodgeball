@@ -13,7 +13,6 @@ using std::vector;
 
 class Camera{
 public:
-
     Camera():
     x(0),
     y(0),
@@ -98,6 +97,14 @@ public:
     void moveLeft(int much){
         this->x -= much;
     }
+    
+    void moveUp(int much){
+        this->y -= much;
+    }
+    
+    void moveDown(int much){
+        this->y += much;
+    }
 
     double getX() const {
         return x;
@@ -161,8 +168,28 @@ protected:
 
 class Field{
 public:
-    void draw(const Graphics::Bitmap & work, const Camera & camera){
+    Field(int width, int height):
+    width(width),
+    height(height){
     }
+
+    void draw(const Graphics::Bitmap & work, const Camera & camera){
+        int margin = 10;
+        int x1 = 0 + margin;
+        int x2 = width - margin;
+        int y1 = 0 + margin;
+        int y2 = height - margin;
+
+        work.vLine(camera.computeY(y1), camera.computeX((x1 + x2) / 2), camera.computeY(y2), Graphics::makeColor(255, 255, 255));
+
+        work.hLine(camera.computeX(x1), camera.computeY(y1), camera.computeX(x2), Graphics::makeColor(255, 255, 255));
+        work.hLine(camera.computeX(x1), camera.computeY(y2), camera.computeX(x2), Graphics::makeColor(255, 255, 255));
+        work.vLine(camera.computeY(y1), camera.computeX(x1), camera.computeY(y2), Graphics::makeColor(255, 255, 255));
+        work.vLine(camera.computeY(y1), camera.computeX(x2), camera.computeY(y2), Graphics::makeColor(255, 255, 255));
+    }
+
+    const int width;
+    const int height;
 };
 
 class World{
@@ -173,16 +200,21 @@ public:
     enum Input{
         Left,
         Right,
+        Up,
+        Down,
         ZoomIn,
         ZoomOut
     };
 
     World():
     fieldWidth(1000),
+    field(1000, 1000),
     handler(*this){
-        camera.moveTo(fieldWidth / 2, 0);
+        camera.moveTo(fieldWidth / 2, 1000 / 2);
         map.set(Keyboard::Key_LEFT, Left);
         map.set(Keyboard::Key_RIGHT, Right);
+        map.set(Keyboard::Key_UP, Up);
+        map.set(Keyboard::Key_DOWN, Down);
         map.set(Keyboard::Key_EQUALS, ZoomIn);
         map.set(Keyboard::Key_MINUS, ZoomOut);
     }
@@ -205,6 +237,14 @@ public:
                 }
                 case Right: {
                     world.moveRight();
+                    break;
+                }
+                case Up: {
+                    world.moveUp();
+                    break;
+                }
+                case Down: {
+                    world.moveDown();
                     break;
                 }
                 case ZoomIn: {
@@ -231,13 +271,13 @@ public:
     void moveRight(){
         camera.moveRight(5);
     }
-
-    void drawMiddle(const Graphics::Bitmap & work){
-        work.vLine(camera.computeY(10), camera.computeX(fieldWidth / 2), camera.computeY(1000), Graphics::makeColor(255, 255, 255));
+    
+    void moveUp(){
+        camera.moveUp(5);
     }
-
-    void drawField(const Graphics::Bitmap & work){
-        drawMiddle(work);
+    
+    void moveDown(){
+        camera.moveDown(5);
     }
 
     void drawPlayers(const Graphics::Bitmap & work){
@@ -249,13 +289,14 @@ public:
         Graphics::StretchedBitmap work(camera.getWidth(), camera.getHeight(), screen);
         work.start();
 
-        drawField(work);
+        field.draw(work, camera);
         drawPlayers(work);
 
         work.finish();
     }
 
     Camera camera;
+    Field field;
     int fieldWidth;
     Team team1;
     Team team2;
