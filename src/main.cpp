@@ -8,17 +8,80 @@
 
 class Camera{
 public:
+
+    Camera():
+    x(0),
+    y(0){
+    }
+
+    void moveTo(double x, double y){
+        this->x = x;
+        this->y = y;
+    }
+
+    void moveRight(int much){
+        this->x += much;
+    }
+    
+    void moveLeft(int much){
+        this->x -= much;
+    }
+
+    double getX() const {
+        return x;
+    }
+
+    double getY() const {
+        return y;
+    }
+
+protected:
+
+    double x, y;
 };
 
 class World{
 public:
-    void draw(const Graphics::Bitmap & screen){
+    static const int GFX_X = 640;
+    static const int GFX_Y = 480;
+
+    World():
+    fieldWidth(1000){
+        camera.moveTo(300, 0);
     }
+
+    void moveLeft(){
+        camera.moveLeft(5);
+    }
+
+    void moveRight(){
+        camera.moveRight(5);
+    }
+
+    void drawMiddle(const Graphics::Bitmap & work){
+        int where = fieldWidth / 2;
+        int position = where - camera.getX();
+        work.vLine(0, position, GFX_Y, Graphics::makeColor(255, 255, 255));
+    }
+
+    void draw(const Graphics::Bitmap & screen){
+        Graphics::StretchedBitmap work(GFX_X, GFX_Y, screen);
+        work.start();
+
+        drawMiddle(work);
+
+        work.finish();
+    }
+
+    Camera camera;
+    int fieldWidth;
 };
 
 class Main: public Util::Logic, public Util::Draw {
 public:
     enum Input{
+        Left,
+        Right,
         Quit
     };
 
@@ -26,6 +89,8 @@ public:
     quit(false),
     handler(*this){
         map.set(Keyboard::Key_ESC, Quit);
+        map.set(Keyboard::Key_LEFT, Left);
+        map.set(Keyboard::Key_RIGHT, Right);
     }
 
     void draw(const Graphics::Bitmap & screen){
@@ -54,6 +119,14 @@ public:
 
         void press(const Input & out, Keyboard::unicode_t unicode){
             switch (out){
+                case Left: {
+                    main.world.moveLeft();
+                    break;
+                }
+                case Right: {
+                    main.world.moveRight();
+                    break;
+                }
                 case Quit: {
                     main.quit = true;
                     break;
@@ -74,8 +147,10 @@ public:
 };
 
 static void run(){
+    Keyboard::pushRepeatState(true);
     Main main;
     Util::standardLoop(main, main);
+    Keyboard::popRepeatState();
 }
 
 int main(int argc, char ** argv){
