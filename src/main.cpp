@@ -1,9 +1,20 @@
+#include "util/graphics/bitmap.h"
 #include "util/init.h"
 #include "util/events.h"
 #include "util/input/input-manager.h"
 #include "util/debug.h"
 #include "util/exceptions/exception.h"
 #include "util/exceptions/shutdown_exception.h"
+
+class Camera{
+public:
+};
+
+class World{
+public:
+    void draw(const Graphics::Bitmap & screen){
+    }
+};
 
 class Main: public Util::Logic, public Util::Draw {
 public:
@@ -18,6 +29,9 @@ public:
     }
 
     void draw(const Graphics::Bitmap & screen){
+        screen.clear();
+        world.draw(screen);
+        screen.BlitToScreen();
     }
 
     void run(){
@@ -56,15 +70,17 @@ public:
     bool quit;
     Handler handler;
     InputMap<Input> map;
+    World world;
 };
 
 static void run(){
-        Main main;
+    Main main;
     Util::standardLoop(main, main);
 }
 
 int main(int argc, char ** argv){
     Global::init(Global::WINDOWED);
+    Util::Parameter<Graphics::Bitmap*> use(Graphics::screenParameter, Graphics::getScreenBuffer());
     InputManager input;
     try{
         run();

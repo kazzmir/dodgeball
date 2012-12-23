@@ -1,2 +1,2 @@
 all:
-	scons
+	scons -j 2
