@@ -9,6 +9,8 @@ using std::vector;
 
 namespace Dodgeball{
 
+static const double gravity = 1.1;
+
 Camera::Camera():
 x(0),
 y(0),
@@ -128,6 +130,10 @@ Field::Field(int width, int height):
 width(width),
 height(height){
 }
+    
+double Field::getFriction() const {
+    return 1.0;
+}
 
 int Field::getWidth() const {
     return width;
@@ -181,7 +187,9 @@ void Field::draw(const Graphics::Bitmap & work, const Camera & camera){
 Player::Player(double x, double y):
 x(x),
 y(y),
-control(false){
+control(false),
+hasBall(false),
+facing(FaceRight){
     map.set(Keyboard::Key_LEFT, Left);
     map.set(Keyboard::Key_RIGHT, Right);
     map.set(Keyboard::Key_UP, Up);
@@ -261,18 +269,22 @@ void Player::doInput(World & world){
 
     if (hold.left){
         moveLeft(speed);
+        facing = FaceLeft;
     }
 
     if (hold.right){
         moveRight(speed);
+        facing = FaceRight;
     }
 
     if (hold.up){
         moveUp(speed);
+        facing = FaceUp;
     }
 
     if (hold.down){
         moveDown(speed);
+        facing = FaceDown;
     }
 
     if (handler.action){
@@ -281,8 +293,15 @@ void Player::doInput(World & world){
 }
 
 void Player::doAction(World & world){
-    if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
-        world.getBall().grab(this);
+    if (hasBall){
+        Ball & ball = world.getBall();
+        ball.doThrow(10, 0, 15);
+        hasBall = false;
+    } else {
+        if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
+            world.getBall().grab(this);
+            hasBall = true;
+        }
     }
 }
 
@@ -344,7 +363,11 @@ void Team::act(World & world){
 Ball::Ball(double x, double y):
 x(x),
 y(y),
+z(0),
 angle(Util::rnd(360)),
+velocityX(0),
+velocityY(0),
+velocityZ(0),
 grabbed(false),
 moving(false),
 holder(NULL){
@@ -355,9 +378,17 @@ void Ball::grab(Player * holder){
     moving = false;
     this->holder = holder;
 }
-    
+
 void Ball::ungrab(){
     grabbed = false;
+    holder = NULL;
+}
+
+void Ball::doThrow(double velocityX, double velocityY, double velocityZ){
+    ungrab();
+    this->velocityX = velocityX;
+    this->velocityY = velocityY;
+    this->velocityZ = velocityZ;
 }
 
 double Ball::getX() const {
@@ -368,16 +399,50 @@ double Ball::getY() const {
     return y;
 }
 
-void Ball::act(){
+void Ball::act(const Field & field){
     if (grabbed && holder != NULL){
         this->x = holder->getX();
         this->y = holder->getY();
-    }
+        /* FIXME: relative to the holder's hands */
+        this->z = 15;
+    } else {
+        x += velocityX;
+        y += velocityY;
+        z += velocityZ;
 
-    if (moving){
-        angle += 1;
+        if (z > 0){
+            velocityZ -= gravity;
+        } else {
+            velocityZ = -velocityZ / 2;
+            if (velocityZ < gravity){
+                velocityZ = 0;
+            }
+            z = 0;
+
+            if (velocityX > field.getFriction()){
+                velocityX -= field.getFriction();
+            } else if (velocityX < -field.getFriction()){
+                velocityX += field.getFriction();
+            } else {
+                velocityX = 0;
+            }
+
+            if (velocityY > field.getFriction()){
+                velocityY -= field.getFriction();
+            } else if (velocityY < -field.getFriction()){
+                velocityY += field.getFriction();
+            } else {
+                velocityY = 0;
+            }
+
+        }
+
+        angle += velocityX + velocityY;
         if (angle > 360){
             angle -= 360;
+        }
+        if (angle < 0){
+            angle += 360;
         }
     }
 }
@@ -385,7 +450,7 @@ void Ball::act(){
 void Ball::draw(const Graphics::Bitmap & work, const Camera & camera){
     int size = 10;
     int middleX = camera.computeX(x);
-    int middleY = camera.computeY(y - size);
+    int middleY = camera.computeY(y - z - size);
 
     work.ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
                      size, size / 2, Graphics::makeColor(32, 32, 32));
@@ -467,7 +532,7 @@ void World::run(){
     Handler handler(*this);
 
     InputManager::handleEvents(map, InputSource(0, 0), handler);
-    ball.act();
+    ball.act(field);
     team1.act(*this);
     team2.act(*this);
 

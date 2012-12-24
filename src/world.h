@@ -61,6 +61,8 @@ public:
     int getWidth() const;
     int getHeight() const;
 
+    double getFriction() const;
+
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     const int width;
@@ -69,6 +71,17 @@ public:
 
 class Player{
 public:
+    enum Facing{
+        FaceLeft,
+        FaceRight,
+        FaceUp,
+        FaceDown,
+        FaceUpLeft,
+        FaceUpRight,
+        FaceDownLeft,
+        FaceDownRight
+    };
+
     enum Input{
         Left,
         Right,
@@ -113,6 +126,8 @@ protected:
     double y;
     /* true if the human player is controlling this guy */
     bool control;
+    bool hasBall;
+    Facing facing;
     InputMap<Input> map;
 };
 
@@ -136,17 +151,26 @@ public:
 
     double getX() const;
     double getY() const;
+    double getZ() const;
 
     void grab(Player * holder);
     void ungrab();
 
-    void act();
+    void act(const Field & field);
+
+    void doThrow(double velocityX, double velocityY, double velocityZ);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     double x;
     double y;
+    /* z will be the in-air coordinate */
+    double z;
     double angle;
+
+    double velocityX;
+    double velocityY;
+    double velocityZ;
 
     /* true if being grabbed */
     bool grabbed;
