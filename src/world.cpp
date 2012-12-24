@@ -184,13 +184,14 @@ void Field::draw(const Graphics::Bitmap & work, const Camera & camera){
                        white);
 }
 
-Player::Player(double x, double y, const Box & box):
+Player::Player(double x, double y, const Graphics::Color & color, const Box & box):
 x(x),
 y(y),
 control(false),
 hasBall(false),
 facing(FaceRight),
-limit(box){
+limit(box),
+color(color){
     map.set(Keyboard::Key_LEFT, Left);
     map.set(Keyboard::Key_RIGHT, Right);
     map.set(Keyboard::Key_UP, Up);
@@ -438,7 +439,7 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
-    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, Graphics::makeColor(255, 0, 0));
+    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, color);
     work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
 }
 
@@ -466,33 +467,34 @@ side(side){
     }
 }
 
-static Util::ReferenceCount<Player> makePlayer(double x, double y, const Box & box){
-    return Util::ReferenceCount<Player>(new Player(x, y, box));
+static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box){
+    return Util::ReferenceCount<Player>(new Player(x, y, color, box));
 }
 
 void Team::populateLeft(const Field & field){
     map.set(Keyboard::Key_Q, Cycle);
     double width = field.getWidth() / 2;
     double height = field.getHeight();
-    players.push_back(makePlayer(width / 5, height / 2, Box(0, 0, width, height)));
-    players.push_back(makePlayer(width / 2, height / 4, Box(0, 0, width, height)));
-    players.push_back(makePlayer(width / 2, height * 3 / 4, Box(0, 0, width, height)));
-    players.push_back(makePlayer(-10, height / 2, Box(-10, 0, -10, height)));
-    players.push_back(makePlayer(width / 2, -10, Box(0, -10, width, -10)));
-    players.push_back(makePlayer(width / 2, height + 10, Box(0, height + 10, width, height + 10)));
+    Graphics::Color color(Graphics::makeColor(255, 0, 0));
+    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height)));
+    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height)));
+    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height)));
+    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width / 2, -10, field.getWidth(), -10)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width / 2, height + 10, field.getWidth(), height + 10)));
 }
 
 void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, Box(field.getWidth() - width, 0, field.getWidth(), height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, Box(field.getWidth() - width, 0, field.getWidth(), height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    Graphics::Color color(Graphics::makeColor(0x00, 0xaf, 0x64));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height)));
 
-    /* fixme: boxes */
-    players.push_back(makePlayer(field.getWidth() - 0, height / 2, Box(field.getWidth() - width, 0, field.getWidth(), height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, 0, Box(field.getWidth() - width, 0, field.getWidth(), height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height)));
+    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10)));
+    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10)));
 }
 
 void Team::enableControl(){

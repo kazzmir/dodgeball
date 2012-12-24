@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "util/input/input-map.h"
+#include "util/graphics/color.h"
 #include "util/pointer.h"
 
 namespace Graphics{
@@ -104,7 +105,7 @@ public:
         Action
     };
 
-    Player(double x, double y, const Box & box);
+    Player(double x, double y, const Graphics::Color & color, const Box & box);
 
     struct Hold{
         Hold():
@@ -148,6 +149,7 @@ protected:
     Facing facing;
     InputMap<Input> map;
     Box limit;
+    Graphics::Color color;
 };
 
 class Team{
