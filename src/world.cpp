@@ -206,6 +206,10 @@ void Player::act(World & world){
 void Player::setControl(bool what){
     this->control = what;
 }
+    
+bool Player::hasControl() const {
+    return this->control;
+}
 
 void Player::doInput(World & world){
     class Handler: public InputHandler<Input> {
@@ -410,6 +414,9 @@ void Player::moveDown(double speed){
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     int height = 60;
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
+    if (hasControl()){
+        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(0, 0, 255));
+    }
     if (hasBall){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
@@ -439,6 +446,7 @@ static Util::ReferenceCount<Player> makePlayer(double x, double y){
 }
 
 void Team::populateLeft(const Field & field){
+    map.set(Keyboard::Key_Q, Cycle);
     double width = field.getWidth() / 2;
     double height = field.getHeight();
     players.push_back(makePlayer(width / 5, height / 2));
@@ -466,6 +474,17 @@ void Team::enableControl(){
     }
 }
 
+void Team::cycleControl(){
+    for (int i = 0; i < players.size(); i++){
+        if (players[i]->hasControl()){
+            int use = (i + 1) % players.size();
+            players[i]->setControl(false);
+            players[use]->setControl(true);
+            break;
+        }
+    }
+}
+
 void Team::draw(const Graphics::Bitmap & work, const Camera & camera){
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
@@ -474,6 +493,30 @@ void Team::draw(const Graphics::Bitmap & work, const Camera & camera){
 }
 
 void Team::act(World & world){
+    class Handler: public InputHandler<Input> {
+    public:
+        Handler(Team & team):
+        team(team){
+        }
+
+        Team & team;
+
+        void press(const Input & out, Keyboard::unicode_t unicode){
+            switch (out){
+                case Cycle: {
+                    team.cycleControl();
+                    break;
+                }
+            }
+        }
+
+        void release(const Input & out, Keyboard::unicode_t unicode){
+        }
+    };
+
+    Handler handler(*this);
+    InputManager::handleEvents(map, InputSource(0, 0), handler);
+
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
         player->act(world);

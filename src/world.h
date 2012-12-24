@@ -107,6 +107,7 @@ public:
 
     void act(World & world);
     void setControl(bool what);
+    bool hasControl() const;
 
     void doInput(World & world);
 
@@ -140,9 +141,14 @@ public:
         RightSide
     };
 
+    enum Input{
+        Cycle
+    };
+
     Team(Side side, const Field & field);
 
     void enableControl();
+    void cycleControl();
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
@@ -154,6 +160,7 @@ protected:
 
     std::vector<Util::ReferenceCount<Player> > players;
     Side side;
+    InputMap<Input> map;
 };
 
 class Ball{
