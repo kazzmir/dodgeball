@@ -203,8 +203,9 @@ void Player::doInput(World & world){
     class Handler: public InputHandler<Input> {
     public:
         Handler(Player & player):
-            player(player){
-            }
+        player(player),
+        action(false){
+        }
 
         Player & player;
         bool action;
@@ -227,8 +228,7 @@ void Player::doInput(World & world){
                     player.hold.down = set;
                     break;
                 }
-                case Action: {
-                    action = true;
+                default: {
                     break;
                 }
             }
@@ -236,6 +236,17 @@ void Player::doInput(World & world){
 
         void press(const Input & out, Keyboard::unicode_t unicode){
             handle(out, true);
+
+            switch (out){
+                case Action: {
+                    action = true;
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+
         }
 
         void release(const Input & out, Keyboard::unicode_t unicode){
@@ -270,7 +281,7 @@ void Player::doInput(World & world){
 }
 
 void Player::doAction(World & world){
-    if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 10){
+    if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
         world.getBall().grab(this);
     }
 }
