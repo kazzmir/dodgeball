@@ -265,7 +265,7 @@ bool Player::hasControl() const {
 }
     
 double Player::getHandPosition() const {
-    return z + 30;
+    return z + 50;
 }
 
 void Hold::act(){
@@ -574,7 +574,7 @@ int Player::getFacingAngle() const {
 }
 
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
-    int height = 60;
+    int height = 130;
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
 
     double facingX = cos(Util::radians(getFacingAngle())) * 40;
@@ -590,8 +590,8 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
-    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, color);
-    work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
+    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), 10, height / 2, color);
+    work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - z - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
 }
 
 double Player::getX() const {
@@ -793,10 +793,17 @@ void Ball::act(const Field & field){
             angle += 360;
         }
     }
+
+    if (x < 0 || x > field.getWidth()){
+        velocityX = -velocityX;
+    }
+    if (y < 0 || y > field.getHeight()){
+        velocityY = -velocityY;
+    }
 }
 
 void Ball::draw(const Graphics::Bitmap & work, const Camera & camera){
-    int size = 10;
+    int size = 25;
     int middleX = camera.computeX(x);
     int middleY = camera.computeY(y - z - size);
 
