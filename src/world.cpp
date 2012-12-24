@@ -144,13 +144,13 @@ int Field::getHeight() const {
 }
 
 void Field::draw(const Graphics::Bitmap & work, const Camera & camera){
-    int margin = 30;
+    int margin = 10;
 
     /* the outside edge of the line is the boundary */
-    int x1 = 0 + margin;
-    int x2 = width - margin;
-    int y1 = 0 + margin;
-    int y2 = height - margin;
+    int x1 = 0;
+    int x2 = width;
+    int y1 = 0;
+    int y2 = height;
 
     int middle = (x1 + x2) / 2;
 
@@ -159,37 +159,38 @@ void Field::draw(const Graphics::Bitmap & work, const Camera & camera){
     Graphics::Color white = Graphics::makeColor(255, 255, 255);
 
     /* center line */
-    work.rectangleFill(camera.computeX(middle - 5), camera.computeY(y1),
-                       camera.computeX(middle + 5), camera.computeY(y2),
+    work.rectangleFill(camera.computeX(middle - margin / 2), camera.computeY(y1),
+                       camera.computeX(middle + margin / 2), camera.computeY(y2),
                        white);
 
     /* left side */
     work.rectangleFill(camera.computeX(x1), camera.computeY(y1),
-                       camera.computeX(x1 + 10), camera.computeY(y2),
+                       camera.computeX(x1 + margin), camera.computeY(y2),
                        white);
 
     /* right side */
     work.rectangleFill(camera.computeX(x2), camera.computeY(y1),
-                       camera.computeX(x2 - 10), camera.computeY(y2),
+                       camera.computeX(x2 - margin), camera.computeY(y2),
                        white);
 
     /* top side */
     work.rectangleFill(camera.computeX(x1), camera.computeY(y1),
-                       camera.computeX(x2), camera.computeY(y1 + 10),
+                       camera.computeX(x2), camera.computeY(y1 + margin),
                        white);
 
     /* bottom side */
     work.rectangleFill(camera.computeX(x1), camera.computeY(y2),
-                       camera.computeX(x2), camera.computeY(y2 - 10),
+                       camera.computeX(x2), camera.computeY(y2 - margin),
                        white);
 }
 
-Player::Player(double x, double y):
+Player::Player(double x, double y, const Box & box):
 x(x),
 y(y),
 control(false),
 hasBall(false),
-facing(FaceRight){
+facing(FaceRight),
+limit(box){
     map.set(Keyboard::Key_LEFT, Left);
     map.set(Keyboard::Key_RIGHT, Right);
     map.set(Keyboard::Key_UP, Up);
@@ -285,6 +286,22 @@ void Player::doInput(World & world){
 
     if (hold.down){
         moveDown(speed);
+    }
+
+    if (getX() < limit.x1){
+        setX(limit.x1);
+    }
+
+    if (getX() > limit.x2){
+        setX(limit.x2);
+    }
+
+    if (getY() < limit.y1){
+        setY(limit.y1);
+    }
+
+    if (getY() > limit.y2){
+        setY(limit.y2);
     }
 
     if (hold.left && !hold.right && !hold.up && !hold.down){
@@ -432,6 +449,14 @@ double Player::getX() const {
 double Player::getY() const {
     return y;
 }
+    
+void Player::setX(double x){
+    this->x = x;
+}
+
+void Player::setY(double y){
+    this->y = y;
+}
 
 Team::Team(Side side, const Field & field):
 side(side){
@@ -441,31 +466,33 @@ side(side){
     }
 }
 
-static Util::ReferenceCount<Player> makePlayer(double x, double y){
-    return Util::ReferenceCount<Player>(new Player(x, y));
+static Util::ReferenceCount<Player> makePlayer(double x, double y, const Box & box){
+    return Util::ReferenceCount<Player>(new Player(x, y, box));
 }
 
 void Team::populateLeft(const Field & field){
     map.set(Keyboard::Key_Q, Cycle);
     double width = field.getWidth() / 2;
     double height = field.getHeight();
-    players.push_back(makePlayer(width / 5, height / 2));
-    players.push_back(makePlayer(width / 2, height / 4));
-    players.push_back(makePlayer(width / 2, height * 3 / 4));
-    players.push_back(makePlayer(0, height / 2));
-    players.push_back(makePlayer(width / 2, 0));
-    players.push_back(makePlayer(width / 2, height));
+    players.push_back(makePlayer(width / 5, height / 2, Box(0, 0, width, height)));
+    players.push_back(makePlayer(width / 2, height / 4, Box(0, 0, width, height)));
+    players.push_back(makePlayer(width / 2, height * 3 / 4, Box(0, 0, width, height)));
+    players.push_back(makePlayer(-10, height / 2, Box(-10, 0, -10, height)));
+    players.push_back(makePlayer(width / 2, -10, Box(0, -10, width, -10)));
+    players.push_back(makePlayer(width / 2, height + 10, Box(0, height + 10, width, height + 10)));
 }
 
 void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4));
-    players.push_back(makePlayer(field.getWidth() - 0, height / 2));
-    players.push_back(makePlayer(field.getWidth() - width / 2, 0));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+
+    /* fixme: boxes */
+    players.push_back(makePlayer(field.getWidth() - 0, height / 2, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, 0, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height, Box(field.getWidth() - width, 0, field.getWidth(), height)));
 }
 
 void Team::enableControl(){

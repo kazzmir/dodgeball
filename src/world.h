@@ -70,6 +70,19 @@ public:
     const int height;
 };
 
+/* Used to limit a players movement to the given rectangle */
+struct Box{
+    Box(int x1, int y1, int x2, int y2):
+    x1(x1), y1(y1),
+    x2(x2), y2(y2){
+    }
+
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+};
+
 class Player{
 public:
     enum Facing{
@@ -91,7 +104,7 @@ public:
         Action
     };
 
-    Player(double x, double y);
+    Player(double x, double y, const Box & box);
 
     struct Hold{
         Hold():
@@ -123,6 +136,8 @@ public:
 
     double getX() const;
     double getY() const;
+    void setX(double x);
+    void setY(double y);
 
 protected:
     double x;
@@ -132,6 +147,7 @@ protected:
     bool hasBall;
     Facing facing;
     InputMap<Input> map;
+    Box limit;
 };
 
 class Team{
