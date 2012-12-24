@@ -350,49 +350,49 @@ void Player::throwBall(Ball & ball){
         case FaceLeft: {
             vx = -10;
             vy = 0;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceRight: {
             vx = 10;
             vy = 0;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceUp: {
             vx = 0;
             vy = -10;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceDown: {
             vx = 0;
             vy = 10;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceUpLeft: {
             vx = -8;
             vy = -8;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceUpRight: {
             vx = 8;
             vy = -8;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceDownLeft: {
             vx = -8;
             vy = 8;
-            vz = 15;
+            vz = 0;
             break;
         }
         case FaceDownRight: {
             vx = 8;
             vy = 8;
-            vz = 15;
+            vz = 0;
             break;
         }
     }
@@ -560,6 +560,7 @@ angle(Util::rnd(360)),
 velocityX(0),
 velocityY(0),
 velocityZ(0),
+timeInAir(0),
 grabbed(false),
 moving(false),
 holder(NULL){
@@ -578,6 +579,7 @@ void Ball::ungrab(){
 
 void Ball::doThrow(double velocityX, double velocityY, double velocityZ){
     ungrab();
+    timeInAir = 50;
     this->velocityX = velocityX;
     this->velocityY = velocityY;
     this->velocityZ = velocityZ;
@@ -596,14 +598,18 @@ void Ball::act(const Field & field){
         this->x = holder->getX();
         this->y = holder->getY();
         /* FIXME: relative to the holder's hands */
-        this->z = 15;
+        this->z = 30;
     } else {
         x += velocityX;
         y += velocityY;
         z += velocityZ;
 
         if (z > 0){
-            velocityZ -= gravity;
+            if (timeInAir <= 0){
+                velocityZ -= gravity;
+            } else {
+                timeInAir -= 1;
+            }
         } else {
             velocityZ = -velocityZ / 2;
             if (velocityZ < gravity){

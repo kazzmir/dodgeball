@@ -208,6 +208,8 @@ public:
     double velocityY;
     double velocityZ;
 
+    int timeInAir;
+
     /* true if being grabbed */
     bool grabbed;
     bool moving;
