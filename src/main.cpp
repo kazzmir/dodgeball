@@ -54,33 +54,41 @@ public:
 
     double getX1() const {
         double x1 = getX() - width / getZoom();
+        /*
         if (x1 < 0){
             return 0;
         }
+        */
         return x1;
     }
     
     double getX2() const {
         double x2 = getX() + width / getZoom();
+        /*
         if (x2 > 1000){
             return 1000 - getWidth();
         }
+        */
         return x2;
     }
     
     double getY1() const {
         double y1 = getY() - height / getZoom();
+        /*
         if (y1 < 0){
             return 0;
         }
+        */
         return y1;
     }
     
     double getY2() const {
         double y2 = getY() + height / getZoom();
+        /*
         if (y2 > 1000){
             return y2 - getHeight();
         }
+        */
         return y2;
     }
 
@@ -90,6 +98,11 @@ public:
 
     double computeY(double y) const {
         return y - getY1();
+    }
+
+    void moveTowards(double x, double y){
+        this->x = (x + this->x) / 2;
+        this->y = (y + this->y) / 2;
     }
 
     void moveTo(double x, double y){
@@ -131,92 +144,6 @@ protected:
     double zoom;
 };
 
-class Player{
-public:
-    Player(double x, double y):
-    x(x),
-    y(y){
-    }
-
-    void draw(const Graphics::Bitmap & work, const Camera & camera){
-        int height = 60;
-        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, Graphics::makeColor(255, 0, 0));
-        work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
-    }
-
-    double getX() const {
-        return x;
-    }
-    
-    double getY() const {
-        return y;
-    }
-
-protected:
-    double x;
-    double y;
-};
-
-class Team{
-public:
-    Team(){
-        players.push_back(Util::ReferenceCount<Player>(new Player(100, 100)));
-    }
-
-    void draw(const Graphics::Bitmap & work, const Camera & camera){
-        for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
-            const Util::ReferenceCount<Player> & player = *it;
-            player->draw(work, camera);
-        }
-    }
-
-protected:
-
-    vector<Util::ReferenceCount<Player> > players;
-};
-
-class Ball{
-public:
-    Ball(double x, double y):
-    x(x),
-    y(y),
-    angle(Util::rnd(360)){
-    }
-
-    void act(){
-        angle += 1;
-        if (angle > 360){
-            angle -= 360;
-        }
-    }
-
-    void draw(const Graphics::Bitmap & work, const Camera & camera){
-        int size = 10;
-        int middleX = camera.computeX(x);
-        int middleY = camera.computeY(y - size);
-
-        work.ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
-                         size, size / 2, Graphics::makeColor(32, 32, 32));
-
-        work.circleFill(middleX, middleY, size,
-                        Graphics::makeColor(255, 255, 255));
-
-        double radians = Util::radians(angle);
-        work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
-                  middleX + cos(radians) * size, middleY + sin(radians) * size,
-                  Graphics::makeColor(0, 0, 0));
-        
-        radians = Util::radians(angle + 90);
-        work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
-                  middleX + cos(radians) * size, middleY + sin(radians) * size,
-                  Graphics::makeColor(0, 0, 0));
-    }
-
-    double x;
-    double y;
-    double angle;
-};
-
 class Field{
 public:
     Field(int width, int height):
@@ -234,6 +161,8 @@ public:
 
     void draw(const Graphics::Bitmap & work, const Camera & camera){
         int margin = 30;
+
+        /* the outside edge of the line is the boundary */
         int x1 = 0 + margin;
         int x2 = width - margin;
         int y1 = 0 + margin;
@@ -275,6 +204,229 @@ public:
     const int height;
 };
 
+class Player{
+public:
+    enum Input{
+        Left,
+        Right,
+        Up,
+        Down
+    };
+
+    Player(double x, double y):
+    x(x),
+    y(y),
+    control(false){
+        map.set(Keyboard::Key_LEFT, Left);
+        map.set(Keyboard::Key_RIGHT, Right);
+        map.set(Keyboard::Key_UP, Up);
+        map.set(Keyboard::Key_DOWN, Down);
+    }
+
+    struct Hold{
+        Hold():
+            left(false), right(false),
+            up(false), down(false){
+            }
+
+        bool left;
+        bool right;
+        bool up;
+        bool down;
+    } hold;
+
+    void act(){
+        if (control){
+            doInput();
+        }
+    }
+
+    void setControl(bool what){
+        this->control = what;
+    }
+
+    void doInput(){
+        class Handler: public InputHandler<Input> {
+        public:
+            Handler(Player & player):
+            player(player){
+            }
+
+            Player & player;
+
+            void handle(const Input & out, bool set){
+                switch (out){
+                    case Left: {
+                        player.hold.left = set;
+                        break;
+                    }
+                    case Right: {
+                        player.hold.right = set;
+                        break;
+                    }
+                    case Up: {
+                        player.hold.up = set;
+                        break;
+                    }
+                    case Down: {
+                        player.hold.down = set;
+                        break;
+                    }
+                }
+            }
+
+            void press(const Input & out, Keyboard::unicode_t unicode){
+                handle(out, true);
+            }
+
+            void release(const Input & out, Keyboard::unicode_t unicode){
+                handle(out, false);
+            }
+        };
+
+        Handler handler(*this);
+        InputManager::handleEvents(map, InputSource(0, 0), handler);
+
+        double speed = 3;
+
+        if (hold.left){
+            moveLeft(speed);
+        }
+
+        if (hold.right){
+            moveRight(speed);
+        }
+
+        if (hold.up){
+            moveUp(speed);
+        }
+
+        if (hold.down){
+            moveDown(speed);
+        }
+    }
+
+    void moveLeft(double speed){
+        this->x -= speed;
+    }
+
+    void moveRight(double speed){
+        this->x += speed;
+    }
+
+    void moveUp(double speed){
+        this->y -= speed;
+    }
+
+    void moveDown(double speed){
+        this->y += speed;
+    }
+
+    void draw(const Graphics::Bitmap & work, const Camera & camera){
+        int height = 60;
+        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
+        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, Graphics::makeColor(255, 0, 0));
+        work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
+    }
+
+    double getX() const {
+        return x;
+    }
+    
+    double getY() const {
+        return y;
+    }
+
+protected:
+    double x;
+    double y;
+    /* true if the human player is controlling this guy */
+    bool control;
+    InputMap<Input> map;
+};
+
+class Team{
+public:
+    Team(const Field & field){
+        players.push_back(Util::ReferenceCount<Player>(new Player(Util::rnd(field.getWidth()), Util::rnd(field.getHeight()))));
+    }
+
+    void enableControl(){
+        if (players.size() > 0){
+            players[0]->setControl(true);
+        }
+    }
+
+    void draw(const Graphics::Bitmap & work, const Camera & camera){
+        for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+            const Util::ReferenceCount<Player> & player = *it;
+            player->draw(work, camera);
+        }
+    }
+
+    void act(){
+        for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+            const Util::ReferenceCount<Player> & player = *it;
+            player->act();
+        }
+    }
+
+protected:
+
+    vector<Util::ReferenceCount<Player> > players;
+};
+
+class Ball{
+public:
+    Ball(double x, double y):
+    x(x),
+    y(y),
+    angle(Util::rnd(360)){
+    }
+
+    double getX() const {
+        return x;
+    }
+
+    double getY() const {
+        return y;
+    }
+
+    void act(){
+        angle += 1;
+        if (angle > 360){
+            angle -= 360;
+        }
+    }
+
+    void draw(const Graphics::Bitmap & work, const Camera & camera){
+        int size = 10;
+        int middleX = camera.computeX(x);
+        int middleY = camera.computeY(y - size);
+
+        work.ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
+                         size, size / 2, Graphics::makeColor(32, 32, 32));
+
+        work.circleFill(middleX, middleY, size,
+                        Graphics::makeColor(255, 255, 255));
+
+        double radians = Util::radians(angle);
+        work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
+                  middleX + cos(radians) * size, middleY + sin(radians) * size,
+                  Graphics::makeColor(0, 0, 0));
+        
+        radians = Util::radians(angle + 90);
+        work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
+                  middleX + cos(radians) * size, middleY + sin(radians) * size,
+                  Graphics::makeColor(0, 0, 0));
+    }
+
+    double x;
+    double y;
+    double angle;
+};
+
+
 class World{
 public:
     enum Input{
@@ -289,7 +441,9 @@ public:
     World():
     field(1200, 600),
     ball(400, 300),
-    handler(*this){
+    handler(*this),
+    team1(field),
+    team2(field){
         camera.moveTo(field.getWidth() / 2, field.getHeight() / 2);
         map.set(Keyboard::Key_LEFT, Left);
         map.set(Keyboard::Key_RIGHT, Right);
@@ -297,11 +451,17 @@ public:
         map.set(Keyboard::Key_DOWN, Down);
         map.set(Keyboard::Key_EQUALS, ZoomIn);
         map.set(Keyboard::Key_MINUS, ZoomOut);
+
+        team1.enableControl();
     }
 
     void run(){
         InputManager::handleEvents(map, InputSource(0, 0), handler);
         ball.act();
+        team1.act();
+        team2.act();
+        
+        camera.moveTowards(ball.getX(), ball.getY());
     }
 
     class Handler: public InputHandler<Input> {
@@ -312,6 +472,7 @@ public:
 
         void press(const Input & out, Keyboard::unicode_t unicode){
             switch (out){
+                /*
                 case Left: {
                     world.moveLeft();
                     break;
@@ -328,6 +489,7 @@ public:
                     world.moveDown();
                     break;
                 }
+                */
                 case ZoomIn: {
                     world.camera.zoomIn(0.02);
                     break;
@@ -446,7 +608,7 @@ public:
 };
 
 static void run(){
-    Keyboard::pushRepeatState(true);
+    Keyboard::pushRepeatState(false);
     Main main;
     Util::standardLoop(main, main);
     Keyboard::popRepeatState();
