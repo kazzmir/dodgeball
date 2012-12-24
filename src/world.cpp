@@ -14,7 +14,7 @@ static const double gravity = 1.1;
 Camera::Camera():
 x(0),
 y(0),
-zoom(1){
+zoom(0.8){
 }
 
 void Camera::zoomIn(double amount){
@@ -191,6 +191,8 @@ z(0),
 velocityX(0),
 velocityY(0),
 velocityZ(0),
+runningLeft(false),
+runningRight(false),
 control(false),
 hasBall(false),
 facing(FaceRight),
@@ -235,95 +237,6 @@ void Player::act(World & world){
     x += velocityX;
     y += velocityY;
     z += velocityZ;
-}
-
-void Player::setControl(bool what){
-    this->control = what;
-}
-    
-bool Player::hasControl() const {
-    return this->control;
-}
-    
-double Player::getHandPosition() const {
-    return z + 30;
-}
-
-void Player::doInput(World & world){
-    class Handler: public InputHandler<Input> {
-    public:
-        Handler(Player & player):
-        player(player),
-        action(false){
-        }
-
-        Player & player;
-        bool action;
-
-        void handle(const Input & out, bool set){
-            switch (out){
-                case Left: {
-                    player.hold.left = set;
-                    break;
-                }
-                case Right: {
-                    player.hold.right = set;
-                    break;
-                }
-                case Up: {
-                    player.hold.up = set;
-                    break;
-                }
-                case Down: {
-                    player.hold.down = set;
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
-        }
-
-        void press(const Input & out, Keyboard::unicode_t unicode){
-            handle(out, true);
-
-            switch (out){
-                case Action: {
-                    action = true;
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
-
-        }
-
-        void release(const Input & out, Keyboard::unicode_t unicode){
-            handle(out, false);
-        }
-    };
-
-    Handler handler(*this);
-    InputManager::handleEvents(map, InputSource(0, 0), handler);
-
-    double speed = 4;
-
-    if (hold.left){
-        moveLeft(speed);
-    }
-
-    if (hold.right){
-        moveRight(speed);
-    }
-
-    if (hold.up){
-        moveUp(speed);
-    }
-
-    if (hold.down){
-        moveDown(speed);
-    }
 
     if (getX() < limit.x1){
         setX(limit.x1);
@@ -341,36 +254,205 @@ void Player::doInput(World & world){
         setY(limit.y2);
     }
 
-    if (hold.left && !hold.right && !hold.up && !hold.down){
-        facing = FaceLeft;
-    }
+}
 
-    if (hold.left && hold.up && !hold.right && !hold.down){
-        facing = FaceUpLeft;
-    }
+void Player::setControl(bool what){
+    this->control = what;
+}
     
-    if (hold.left && hold.down && !hold.right && !hold.up){
-        facing = FaceDownLeft;
-    }
+bool Player::hasControl() const {
+    return this->control;
+}
     
-    if (hold.right && !hold.left && !hold.up && !hold.down){
-        facing = FaceRight;
-    }
-    
-    if (hold.right && hold.up && !hold.left && !hold.down){
-        facing = FaceUpRight;
-    }
-    
-    if (hold.right && hold.down && !hold.left && !hold.up){
-        facing = FaceDownRight;
-    }
+double Player::getHandPosition() const {
+    return z + 30;
+}
 
-    if (hold.up && !hold.down && !hold.left && !hold.right){
-        facing = FaceUp;
+void Hold::act(){
+    if (time > 0){
+        time -= 1;
+    } else {
+        if (last == Pressed){
+            if (count >= 1){
+                count = 1;
+            }
+        } else {
+            count = 0;
+        }
     }
+}
     
-    if (hold.down && !hold.up && !hold.left && !hold.right){
-        facing = FaceDown;
+unsigned int Hold::getCount() const {
+    return count;
+}
+    
+bool Hold::isPressed() const {
+    return last == Pressed;
+}
+
+void Hold::press(){
+    count += 1;
+    time = 10;
+    last = Pressed;
+}
+
+void Hold::release(){
+    last = Release;
+}
+
+void Player::doInput(World & world){
+    class Handler: public InputHandler<Input> {
+    public:
+        Handler(Player & player, World & world):
+        player(player),
+        world(world),
+        action(false){
+        }
+
+        Player & player;
+        World & world;
+        bool action;
+
+        void press(const Input & out, Keyboard::unicode_t unicode){
+            switch (out){
+                case Left: {
+                    player.left.press();
+                    break;
+                }
+                case Right: {
+                    player.right.press();
+                    break;
+                }
+                case Up: {
+                    player.up.press();
+                    break;
+                }
+                case Down: {
+                    player.down.press();
+                    break;
+                }
+                case Action: {
+                    action = true;
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+
+        }
+
+        void release(const Input & out, Keyboard::unicode_t unicode){
+            switch (out){
+                case Left: {
+                    player.left.release();
+                    break;
+                }
+                case Right: {
+                    player.right.release();
+                    break;
+                }
+                case Up: {
+                    player.up.release();
+                    break;
+                }
+                case Down: {
+                    player.down.release();
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+    };
+
+    left.act();
+    right.act();
+    up.act();
+    down.act();
+
+    Handler handler(*this, world);
+    InputManager::handleEvents(map, InputSource(0, 0), handler);
+
+    if (!runningLeft && !runningRight){
+        if (left.getCount() >= 2){
+            runningLeft = true;
+        } else if (right.getCount() >= 2){
+            runningRight = true;
+        } else {
+            /* just walking */
+
+            double speed = 4;
+
+            bool holdLeft = left.isPressed();
+            bool holdRight = right.isPressed();
+            bool holdUp = up.isPressed();
+            bool holdDown = down.isPressed();
+
+            if (holdLeft){
+                moveLeft(speed);
+            }
+
+            if (holdRight){
+                moveRight(speed);
+            }
+
+            if (holdUp){
+                moveUp(speed);
+            }
+
+            if (holdDown){
+                moveDown(speed);
+            }
+
+            if (holdLeft && !holdRight && !holdUp && !holdDown){
+                facing = FaceLeft;
+            }
+
+            if (holdLeft && holdUp && !holdRight && !holdDown){
+                facing = FaceUpLeft;
+            }
+
+            if (holdLeft && holdDown && !holdRight && !holdUp){
+                facing = FaceDownLeft;
+            }
+
+            if (holdRight && !holdLeft && !holdUp && !holdDown){
+                facing = FaceRight;
+            }
+
+            if (holdRight && holdUp && !holdLeft && !holdDown){
+                facing = FaceUpRight;
+            }
+
+            if (holdRight && holdDown && !holdLeft && !holdUp){
+                facing = FaceDownRight;
+            }
+
+            if (holdUp && !holdDown && !holdLeft && !holdRight){
+                facing = FaceUp;
+            }
+
+            if (holdDown && !holdUp && !holdLeft && !holdRight){
+                facing = FaceDown;
+            }
+        }
+    } else {
+        double runSpeed = 1.8;
+        if (runningLeft){
+            if (!left.isPressed()){
+                runningLeft = false;
+            } else {
+                runLeft(runSpeed);
+            }
+        } else if (runningRight){
+            if (!right.isPressed()){
+                runningRight = false;
+            } else {
+                runRight(runSpeed);
+            }
+        }
     }
 
     if (handler.action){
@@ -433,7 +515,7 @@ void Player::throwBall(Ball & ball){
         }
     }
 
-    ball.doThrow(vx, vy, vz);
+    ball.doThrow(vx + velocityX, vy + velocityY, vz);
 }
 
 void Player::doAction(World & world){
@@ -457,6 +539,14 @@ void Player::moveLeft(double speed){
 void Player::moveRight(double speed){
     this->velocityX = speed;
     // this->x += speed;
+}
+    
+void Player::runRight(double speed){
+    this->velocityX += speed;
+}
+
+void Player::runLeft(double speed){
+    this->velocityX -= speed;
 }
 
 void Player::moveUp(double speed){
@@ -787,12 +877,14 @@ void World::run(){
         World & world;
     };
 
+    time += 1;
+
     Handler handler(*this);
 
     InputManager::handleEvents(map, InputSource(0, 0), handler);
-    ball.act(field);
     team1.act(*this);
     team2.act(*this);
+    ball.act(field);
 
     camera.moveTowards(ball.getX(), ball.getY());
 }
@@ -835,6 +927,10 @@ Ball & World::getBall(){
     
 const Field & World::getField() const {
     return field;
+}
+    
+unsigned int World::getTime() const {
+    return time;
 }
 
 }

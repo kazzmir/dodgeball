@@ -84,6 +84,30 @@ struct Box{
     int y2;
 };
 
+struct Hold{
+    enum Last{
+        Pressed,
+        Release
+    };
+
+    Hold():
+    count(0),
+    time(0),
+    last(Release){
+    }
+
+    unsigned int count;
+    unsigned int time;
+    Last last;
+
+    bool isPressed() const;
+    unsigned int getCount() const;
+
+    void act();
+    void press();
+    void release();
+};
+
 class Player{
 public:
     enum Facing{
@@ -106,18 +130,7 @@ public:
     };
 
     Player(double x, double y, const Graphics::Color & color, const Box & box);
-
-    struct Hold{
-        Hold():
-            left(false), right(false),
-            up(false), down(false){
-            }
-
-        bool left;
-        bool right;
-        bool up;
-        bool down;
-    } hold;
+    Hold hold;
 
     void act(World & world);
     void setControl(bool what);
@@ -132,6 +145,8 @@ public:
     void moveRight(double speed);
     void moveUp(double speed);
     void moveDown(double speed);
+    void runRight(double speed);
+    void runLeft(double speed);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
@@ -153,6 +168,9 @@ protected:
     double velocityY;
     double velocityZ;
 
+    bool runningLeft;
+    bool runningRight;
+
     /* true if the human player is controlling this guy */
     bool control;
     bool hasBall;
@@ -160,6 +178,11 @@ protected:
     InputMap<Input> map;
     Box limit;
     Graphics::Color color;
+
+    Hold left;
+    Hold right;
+    Hold up;
+    Hold down;
 };
 
 class Team{
@@ -249,6 +272,8 @@ public:
     void drawPlayers(const Graphics::Bitmap & work);
     void draw(const Graphics::Bitmap & screen);
 
+    unsigned int getTime() const;
+
     const Field & getField() const;
     Ball & getBall();
 
@@ -258,6 +283,7 @@ public:
     Team team1;
     Team team2;
     InputMap<Input> map;
+    unsigned int time;
 };
 
 }
