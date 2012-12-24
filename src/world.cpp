@@ -410,6 +410,10 @@ void Player::moveDown(double speed){
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     int height = 60;
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
+    if (hasBall){
+        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
+        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
+    }
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, Graphics::makeColor(255, 0, 0));
     work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
 }
