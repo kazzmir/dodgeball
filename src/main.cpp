@@ -19,8 +19,8 @@ public:
     zoom(1){
     }
 
-    static const int width = 320;
-    static const int height = 240;
+    static const int width = (int)(320 * 1.2);
+    static const int height = (int)(240 * 1.2);
 
     void zoomIn(double amount){
         zoom += amount;
@@ -173,6 +173,14 @@ public:
     height(height){
     }
 
+    int getWidth() const {
+        return width;
+    }
+
+    int getHeight() const {
+        return height;
+    }
+
     void draw(const Graphics::Bitmap & work, const Camera & camera){
         int margin = 10;
         int x1 = 0 + margin;
@@ -180,12 +188,34 @@ public:
         int y1 = 0 + margin;
         int y2 = height - margin;
 
-        work.vLine(camera.computeY(y1), camera.computeX((x1 + x2) / 2), camera.computeY(y2), Graphics::makeColor(255, 255, 255));
+        int middle = (x1 + x2) / 2;
 
-        work.hLine(camera.computeX(x1), camera.computeY(y1), camera.computeX(x2), Graphics::makeColor(255, 255, 255));
-        work.hLine(camera.computeX(x1), camera.computeY(y2), camera.computeX(x2), Graphics::makeColor(255, 255, 255));
-        work.vLine(camera.computeY(y1), camera.computeX(x1), camera.computeY(y2), Graphics::makeColor(255, 255, 255));
-        work.vLine(camera.computeY(y1), camera.computeX(x2), camera.computeY(y2), Graphics::makeColor(255, 255, 255));
+        Graphics::Color white = Graphics::makeColor(255, 255, 255);
+
+        /* center line */
+        work.rectangleFill(camera.computeX(middle - 5), camera.computeY(y1),
+                           camera.computeX(middle + 5), camera.computeY(y2),
+                           white);
+
+        /* left side */
+        work.rectangleFill(camera.computeX(x1), camera.computeY(y1),
+                           camera.computeX(x1 + 10), camera.computeY(y2),
+                           white);
+
+        /* right side */
+        work.rectangleFill(camera.computeX(x2), camera.computeY(y1),
+                           camera.computeX(x2 - 10), camera.computeY(y2),
+                           white);
+
+        /* top side */
+        work.rectangleFill(camera.computeX(x1), camera.computeY(y1),
+                           camera.computeX(x2), camera.computeY(y1 + 10),
+                           white);
+
+        /* bottom side */
+        work.rectangleFill(camera.computeX(x1), camera.computeY(y2),
+                           camera.computeX(x2), camera.computeY(y2 - 10),
+                           white);
     }
 
     const int width;
@@ -207,10 +237,9 @@ public:
     };
 
     World():
-    fieldWidth(1000),
-    field(1000, 1000),
+    field(1200, 600),
     handler(*this){
-        camera.moveTo(fieldWidth / 2, 1000 / 2);
+        camera.moveTo(field.getWidth() / 2, field.getHeight() / 2);
         map.set(Keyboard::Key_LEFT, Left);
         map.set(Keyboard::Key_RIGHT, Right);
         map.set(Keyboard::Key_UP, Up);
@@ -248,11 +277,11 @@ public:
                     break;
                 }
                 case ZoomIn: {
-                    world.camera.zoomIn(0.1);
+                    world.camera.zoomIn(0.02);
                     break;
                 }
                 case ZoomOut: {
-                    world.camera.zoomOut(0.1);
+                    world.camera.zoomOut(0.02);
                     break;
                 }
             }
@@ -297,7 +326,6 @@ public:
 
     Camera camera;
     Field field;
-    int fieldWidth;
     Team team1;
     Team team2;
     Handler handler;
