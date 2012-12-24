@@ -187,6 +187,10 @@ void Field::draw(const Graphics::Bitmap & work, const Camera & camera){
 Player::Player(double x, double y, const Graphics::Color & color, const Box & box):
 x(x),
 y(y),
+z(0),
+velocityX(0),
+velocityY(0),
+velocityZ(0),
 control(false),
 hasBall(false),
 facing(FaceRight),
@@ -203,6 +207,34 @@ void Player::act(World & world){
     if (control){
         doInput(world);
     }
+
+    if (z > 0){
+        velocityZ -= gravity;
+    } else {
+        z = 0;
+        velocityZ = 0;
+
+        const Field & field = world.getField();
+        if (velocityX > field.getFriction()){
+            velocityX -= field.getFriction();
+        } else if (velocityX < -field.getFriction()){
+            velocityX += field.getFriction();
+        } else {
+            velocityX = 0;
+        }
+
+        if (velocityY > field.getFriction()){
+            velocityY -= field.getFriction();
+        } else if (velocityY < -field.getFriction()){
+            velocityY += field.getFriction();
+        } else {
+            velocityY = 0;
+        }
+    }
+
+    x += velocityX;
+    y += velocityY;
+    z += velocityZ;
 }
 
 void Player::setControl(bool what){
@@ -211,6 +243,10 @@ void Player::setControl(bool what){
     
 bool Player::hasControl() const {
     return this->control;
+}
+    
+double Player::getHandPosition() const {
+    return z + 30;
 }
 
 void Player::doInput(World & world){
@@ -271,7 +307,7 @@ void Player::doInput(World & world){
     Handler handler(*this);
     InputManager::handleEvents(map, InputSource(0, 0), handler);
 
-    double speed = 3;
+    double speed = 4;
 
     if (hold.left){
         moveLeft(speed);
@@ -414,24 +450,49 @@ void Player::doAction(World & world){
 }
 
 void Player::moveLeft(double speed){
-    this->x -= speed;
+    this->velocityX = -speed;
+    // this->x -= speed;
 }
 
 void Player::moveRight(double speed){
-    this->x += speed;
+    this->velocityX = speed;
+    // this->x += speed;
 }
 
 void Player::moveUp(double speed){
-    this->y -= speed;
+    this->velocityY = -speed;
+    // this->y -= speed;
 }
 
 void Player::moveDown(double speed){
-    this->y += speed;
+    this->velocityY = speed;
+    // this->y += speed;
+}
+
+int Player::getFacingAngle() const {
+    switch (facing){
+        case FaceUp: return 90;
+        case FaceDown: return 270;
+        case FaceLeft: return 180;
+        case FaceRight: return 0;
+        case FaceUpLeft: return (90 + 180) / 2;
+        case FaceUpRight: return (90 + 0) / 2;
+        case FaceDownLeft: return (270 + 180) / 2;
+        case FaceDownRight: return (270 + 360) / 2;
+    }
+    return 0;
 }
 
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     int height = 60;
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
+
+    double facingX = cos(Util::radians(getFacingAngle())) * 40;
+    double facingY = -sin(Util::radians(getFacingAngle())) * 40;
+    work.line((int) camera.computeX(x), (int) camera.computeY(y),
+              (int) camera.computeX(x + facingX), (int) camera.computeY(y + facingY),
+              Graphics::makeColor(255, 0, 0));
+
     if (hasControl()){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(0, 0, 255));
     }
@@ -579,7 +640,7 @@ void Ball::ungrab(){
 
 void Ball::doThrow(double velocityX, double velocityY, double velocityZ){
     ungrab();
-    timeInAir = 50;
+    timeInAir = 60;
     this->velocityX = velocityX;
     this->velocityY = velocityY;
     this->velocityZ = velocityZ;
@@ -597,8 +658,7 @@ void Ball::act(const Field & field){
     if (grabbed && holder != NULL){
         this->x = holder->getX();
         this->y = holder->getY();
-        /* FIXME: relative to the holder's hands */
-        this->z = 30;
+        this->z = holder->getHandPosition();
     } else {
         x += velocityX;
         y += velocityY;
@@ -771,6 +831,10 @@ void World::draw(const Graphics::Bitmap & screen){
     
 Ball & World::getBall(){
     return ball;
+}
+    
+const Field & World::getField() const {
+    return field;
 }
 
 }

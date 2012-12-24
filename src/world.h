@@ -135,6 +135,10 @@ public:
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
+    int getFacingAngle() const;
+
+    /* Height of where the hands are */
+    double getHandPosition() const;
     double getX() const;
     double getY() const;
     void setX(double x);
@@ -143,6 +147,12 @@ public:
 protected:
     double x;
     double y;
+    double z;
+
+    double velocityX;
+    double velocityY;
+    double velocityZ;
+
     /* true if the human player is controlling this guy */
     bool control;
     bool hasBall;
@@ -239,6 +249,7 @@ public:
     void drawPlayers(const Graphics::Bitmap & work);
     void draw(const Graphics::Bitmap & screen);
 
+    const Field & getField() const;
     Ball & getBall();
 
     Camera camera;
