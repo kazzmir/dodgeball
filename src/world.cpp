@@ -269,21 +269,49 @@ void Player::doInput(World & world){
 
     if (hold.left){
         moveLeft(speed);
-        facing = FaceLeft;
     }
 
     if (hold.right){
         moveRight(speed);
-        facing = FaceRight;
     }
 
     if (hold.up){
         moveUp(speed);
-        facing = FaceUp;
     }
 
     if (hold.down){
         moveDown(speed);
+    }
+
+    if (hold.left && !hold.right && !hold.up && !hold.down){
+        facing = FaceLeft;
+    }
+
+    if (hold.left && hold.up && !hold.right && !hold.down){
+        facing = FaceUpLeft;
+    }
+    
+    if (hold.left && hold.down && !hold.right && !hold.up){
+        facing = FaceDownLeft;
+    }
+    
+    if (hold.right && !hold.left && !hold.up && !hold.down){
+        facing = FaceRight;
+    }
+    
+    if (hold.right && hold.up && !hold.left && !hold.down){
+        facing = FaceUpRight;
+    }
+    
+    if (hold.right && hold.down && !hold.left && !hold.up){
+        facing = FaceDownRight;
+    }
+
+    if (hold.up && !hold.down && !hold.left && !hold.right){
+        facing = FaceUp;
+    }
+    
+    if (hold.down && !hold.up && !hold.left && !hold.right){
         facing = FaceDown;
     }
 
@@ -292,10 +320,68 @@ void Player::doInput(World & world){
     }
 }
 
+void Player::throwBall(Ball & ball){
+    double vx = 0;
+    double vy = 0;
+    double vz = 0;
+    switch (facing){
+        case FaceLeft: {
+            vx = -10;
+            vy = 0;
+            vz = 15;
+            break;
+        }
+        case FaceRight: {
+            vx = 10;
+            vy = 0;
+            vz = 15;
+            break;
+        }
+        case FaceUp: {
+            vx = 0;
+            vy = -10;
+            vz = 15;
+            break;
+        }
+        case FaceDown: {
+            vx = 0;
+            vy = 10;
+            vz = 15;
+            break;
+        }
+        case FaceUpLeft: {
+            vx = -8;
+            vy = -8;
+            vz = 15;
+            break;
+        }
+        case FaceUpRight: {
+            vx = 8;
+            vy = -8;
+            vz = 15;
+            break;
+        }
+        case FaceDownLeft: {
+            vx = -8;
+            vy = 8;
+            vz = 15;
+            break;
+        }
+        case FaceDownRight: {
+            vx = 8;
+            vy = 8;
+            vz = 15;
+            break;
+        }
+    }
+
+    ball.doThrow(vx, vy, vz);
+}
+
 void Player::doAction(World & world){
     if (hasBall){
         Ball & ball = world.getBall();
-        ball.doThrow(10, 0, 15);
+        throwBall(ball);
         hasBall = false;
     } else {
         if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
@@ -437,7 +523,7 @@ void Ball::act(const Field & field){
 
         }
 
-        angle += velocityX + velocityY;
+        angle += fabs(velocityX) + fabs(velocityY);
         if (angle > 360){
             angle -= 360;
         }

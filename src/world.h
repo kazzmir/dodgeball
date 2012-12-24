@@ -12,6 +12,7 @@ namespace Graphics{
 namespace Dodgeball{
 
 class World;
+class Ball;
 
 class Camera{
 public:
@@ -110,6 +111,7 @@ public:
     void doInput(World & world);
 
     void doAction(World & world);
+    void throwBall(Ball & ball);
 
     void moveLeft(double speed);
     void moveRight(double speed);
