@@ -9,7 +9,7 @@ using std::vector;
 
 namespace Dodgeball{
 
-static const double gravity = 1.1;
+static const double gravity = 0.9;
 
 Camera::Camera():
 x(0),
@@ -203,6 +203,7 @@ color(color){
     map.set(Keyboard::Key_UP, Up);
     map.set(Keyboard::Key_DOWN, Down);
     map.set(Keyboard::Key_A, Action);
+    map.set(Keyboard::Key_SPACE, Jump);
 }
 
 void Player::act(World & world){
@@ -267,6 +268,12 @@ bool Player::hasControl() const {
 double Player::getHandPosition() const {
     return z + 50;
 }
+    
+Box Player::collisionBox() const {
+    int width = 30;
+    int height = 130;
+    return Box(0, 0, width, height);
+}
 
 void Hold::act(){
     if (time > 0){
@@ -306,12 +313,14 @@ void Player::doInput(World & world){
         Handler(Player & player, World & world):
         player(player),
         world(world),
-        action(false){
+        action(false),
+        jump(false){
         }
 
         Player & player;
         World & world;
         bool action;
+        bool jump;
 
         void press(const Input & out, Keyboard::unicode_t unicode){
             switch (out){
@@ -333,6 +342,10 @@ void Player::doInput(World & world){
                 }
                 case Action: {
                     action = true;
+                    break;
+                }
+                case Jump: {
+                    jump = true;
                     break;
                 }
                 default: {
@@ -375,82 +388,88 @@ void Player::doInput(World & world){
     Handler handler(*this, world);
     InputManager::handleEvents(map, InputSource(0, 0), handler);
 
-    if (!runningLeft && !runningRight){
-        if (left.getCount() >= 2){
-            runningLeft = true;
-        } else if (right.getCount() >= 2){
-            runningRight = true;
+    if (z <= 0){
+        if (handler.jump){
+            doJump();
         } else {
-            /* just walking */
+            if (!runningLeft && !runningRight){
+                if (left.getCount() >= 2){
+                    runningLeft = true;
+                } else if (right.getCount() >= 2){
+                    runningRight = true;
+                } else {
+                    /* just walking */
 
-            double speed = 4;
+                    double speed = 4;
 
-            bool holdLeft = left.isPressed();
-            bool holdRight = right.isPressed();
-            bool holdUp = up.isPressed();
-            bool holdDown = down.isPressed();
+                    bool holdLeft = left.isPressed();
+                    bool holdRight = right.isPressed();
+                    bool holdUp = up.isPressed();
+                    bool holdDown = down.isPressed();
 
-            if (holdLeft){
-                moveLeft(speed);
-            }
+                    if (holdLeft){
+                        moveLeft(speed);
+                    }
 
-            if (holdRight){
-                moveRight(speed);
-            }
+                    if (holdRight){
+                        moveRight(speed);
+                    }
 
-            if (holdUp){
-                moveUp(speed);
-            }
+                    if (holdUp){
+                        moveUp(speed);
+                    }
 
-            if (holdDown){
-                moveDown(speed);
-            }
+                    if (holdDown){
+                        moveDown(speed);
+                    }
 
-            if (holdLeft && !holdRight && !holdUp && !holdDown){
-                facing = FaceLeft;
-            }
+                    if (holdLeft && !holdRight && !holdUp && !holdDown){
+                        facing = FaceLeft;
+                    }
 
-            if (holdLeft && holdUp && !holdRight && !holdDown){
-                facing = FaceUpLeft;
-            }
+                    if (holdLeft && holdUp && !holdRight && !holdDown){
+                        facing = FaceUpLeft;
+                    }
 
-            if (holdLeft && holdDown && !holdRight && !holdUp){
-                facing = FaceDownLeft;
-            }
+                    if (holdLeft && holdDown && !holdRight && !holdUp){
+                        facing = FaceDownLeft;
+                    }
 
-            if (holdRight && !holdLeft && !holdUp && !holdDown){
-                facing = FaceRight;
-            }
+                    if (holdRight && !holdLeft && !holdUp && !holdDown){
+                        facing = FaceRight;
+                    }
 
-            if (holdRight && holdUp && !holdLeft && !holdDown){
-                facing = FaceUpRight;
-            }
+                    if (holdRight && holdUp && !holdLeft && !holdDown){
+                        facing = FaceUpRight;
+                    }
 
-            if (holdRight && holdDown && !holdLeft && !holdUp){
-                facing = FaceDownRight;
-            }
+                    if (holdRight && holdDown && !holdLeft && !holdUp){
+                        facing = FaceDownRight;
+                    }
 
-            if (holdUp && !holdDown && !holdLeft && !holdRight){
-                facing = FaceUp;
-            }
+                    if (holdUp && !holdDown && !holdLeft && !holdRight){
+                        facing = FaceUp;
+                    }
 
-            if (holdDown && !holdUp && !holdLeft && !holdRight){
-                facing = FaceDown;
-            }
-        }
-    } else {
-        double runSpeed = 1.8;
-        if (runningLeft){
-            if (!left.isPressed()){
-                runningLeft = false;
+                    if (holdDown && !holdUp && !holdLeft && !holdRight){
+                        facing = FaceDown;
+                    }
+                }
             } else {
-                runLeft(runSpeed);
-            }
-        } else if (runningRight){
-            if (!right.isPressed()){
-                runningRight = false;
-            } else {
-                runRight(runSpeed);
+                double runSpeed = 1.8;
+                if (runningLeft){
+                    if (!left.isPressed()){
+                        runningLeft = false;
+                    } else {
+                        runLeft(runSpeed);
+                    }
+                } else if (runningRight){
+                    if (!right.isPressed()){
+                        runningRight = false;
+                    } else {
+                        runRight(runSpeed);
+                    }
+                }
             }
         }
     }
@@ -458,6 +477,16 @@ void Player::doInput(World & world){
     if (handler.action){
         doAction(world);
     }
+}
+
+void Player::doJump(){
+    runningLeft = false;
+    runningRight = false;
+    velocityZ = jumpVelocity;
+    /* set the z to some initial value above 0 so that it doesn't look like we
+     * are hitting the ground.
+     */
+    z = 0.1;
 }
 
 void Player::throwBall(Ball & ball){
@@ -574,6 +603,7 @@ int Player::getFacingAngle() const {
 }
 
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
+    int width = 30;
     int height = 130;
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
 
@@ -590,7 +620,7 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
-    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), 10, height / 2, color);
+    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), width / 2, height / 2, color);
     work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - z - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
 }
 
@@ -665,8 +695,15 @@ void Team::cycleControl(){
     }
 }
 
+bool yPosition(const Util::ReferenceCount<Player> & a,
+               const Util::ReferenceCount<Player> & b){
+    return a->getY() < b->getY();
+}
+
 void Team::draw(const Graphics::Bitmap & work, const Camera & camera){
-    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+    vector<Util::ReferenceCount<Player> > order = players;
+    sort(order.begin(), order.end(), yPosition);
+    for (vector<Util::ReferenceCount<Player> >::iterator it = order.begin(); it != order.end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
         player->draw(work, camera);
     }
@@ -713,13 +750,13 @@ velocityY(0),
 velocityZ(0),
 timeInAir(0),
 grabbed(false),
-moving(false),
+thrown(false),
 holder(NULL){
 }
 
 void Ball::grab(Player * holder){
     grabbed = true;
-    moving = false;
+    thrown = false;
     this->holder = holder;
 }
 
@@ -730,6 +767,7 @@ void Ball::ungrab(){
 
 void Ball::doThrow(double velocityX, double velocityY, double velocityZ){
     ungrab();
+    thrown = true;
     timeInAir = 60;
     this->velocityX = velocityX;
     this->velocityY = velocityY;
@@ -761,6 +799,9 @@ void Ball::act(const Field & field){
                 timeInAir -= 1;
             }
         } else {
+            /* When the ball hits the ground its not being thrown anymore */
+            thrown = false;
+
             velocityZ = -velocityZ / 2;
             if (velocityZ < gravity){
                 velocityZ = 0;
@@ -822,6 +863,11 @@ void Ball::draw(const Graphics::Bitmap & work, const Camera & camera){
     work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
               middleX + cos(radians) * size, middleY + sin(radians) * size,
               Graphics::makeColor(0, 0, 0));
+}
+    
+Box Ball::collisionBox() const {
+    int size = 25;
+    return Box(0, 0, size, size);
 }
 
 World::World():

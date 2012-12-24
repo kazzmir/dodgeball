@@ -126,6 +126,7 @@ public:
         Right,
         Up,
         Down,
+        Jump,
         Action
     };
 
@@ -140,6 +141,8 @@ public:
 
     void doAction(World & world);
     void throwBall(Ball & ball);
+    
+    Box collisionBox() const;
 
     void moveLeft(double speed);
     void moveRight(double speed);
@@ -160,6 +163,8 @@ public:
     void setY(double y);
 
 protected:
+    void doJump();
+
     double x;
     double y;
     double z;
@@ -167,6 +172,8 @@ protected:
     double velocityX;
     double velocityY;
     double velocityZ;
+
+    static const double jumpVelocity = 15;
 
     bool runningLeft;
     bool runningRight;
@@ -227,6 +234,8 @@ public:
 
     void act(const Field & field);
 
+    Box collisionBox() const;
+
     void doThrow(double velocityX, double velocityY, double velocityZ);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
@@ -245,7 +254,7 @@ public:
 
     /* true if being grabbed */
     bool grabbed;
-    bool moving;
+    bool thrown;
     Player * holder;
 };
 
