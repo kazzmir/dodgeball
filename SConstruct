@@ -7,6 +7,7 @@ env = Environment(ENV = os.environ)
 env.VariantDir('build', 'src')
 source = Split("""
 main.cpp
+world.cpp
 """)
 
 env.Append(CCFLAGS = ['-g3'])
