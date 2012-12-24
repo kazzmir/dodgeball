@@ -7,9 +7,16 @@
 #include "util/exceptions/exception.h"
 #include "util/exceptions/shutdown_exception.h"
 
+#include <math.h>
 #include <vector>
 
 using std::vector;
+
+/* Unit is a foot or something */
+
+static double unitsToPixels(double units){
+    return units * 10;
+}
 
 class Camera{
 public:
@@ -132,7 +139,9 @@ public:
     }
 
     void draw(const Graphics::Bitmap & work, const Camera & camera){
-        work.circleFill((int) camera.computeX(x), (int) camera.computeY(y - 10), 10, Graphics::makeColor(0, 0, 255));
+        int height = 60;
+        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - height / 2), 10, height / 2, Graphics::makeColor(255, 0, 0));
+        work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
     }
 
     double getX() const {
@@ -166,6 +175,48 @@ protected:
     vector<Util::ReferenceCount<Player> > players;
 };
 
+class Ball{
+public:
+    Ball(double x, double y):
+    x(x),
+    y(y),
+    angle(Util::rnd(360)){
+    }
+
+    void act(){
+        angle += 1;
+        if (angle > 360){
+            angle -= 360;
+        }
+    }
+
+    void draw(const Graphics::Bitmap & work, const Camera & camera){
+        int size = 10;
+        int middleX = camera.computeX(x);
+        int middleY = camera.computeY(y - size);
+
+        work.ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
+                         size, size / 2, Graphics::makeColor(32, 32, 32));
+
+        work.circleFill(middleX, middleY, size,
+                        Graphics::makeColor(255, 255, 255));
+
+        double radians = Util::radians(angle);
+        work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
+                  middleX + cos(radians) * size, middleY + sin(radians) * size,
+                  Graphics::makeColor(0, 0, 0));
+        
+        radians = Util::radians(angle + 90);
+        work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
+                  middleX + cos(radians) * size, middleY + sin(radians) * size,
+                  Graphics::makeColor(0, 0, 0));
+    }
+
+    double x;
+    double y;
+    double angle;
+};
+
 class Field{
 public:
     Field(int width, int height):
@@ -182,13 +233,15 @@ public:
     }
 
     void draw(const Graphics::Bitmap & work, const Camera & camera){
-        int margin = 10;
+        int margin = 30;
         int x1 = 0 + margin;
         int x2 = width - margin;
         int y1 = 0 + margin;
         int y2 = height - margin;
 
         int middle = (x1 + x2) / 2;
+
+        work.fill(Graphics::makeColor(0, 255, 0));
 
         Graphics::Color white = Graphics::makeColor(255, 255, 255);
 
@@ -224,9 +277,6 @@ public:
 
 class World{
 public:
-    static const int GFX_X = 640;
-    static const int GFX_Y = 480;
-
     enum Input{
         Left,
         Right,
@@ -238,6 +288,7 @@ public:
 
     World():
     field(1200, 600),
+    ball(400, 300),
     handler(*this){
         camera.moveTo(field.getWidth() / 2, field.getHeight() / 2);
         map.set(Keyboard::Key_LEFT, Left);
@@ -250,6 +301,7 @@ public:
 
     void run(){
         InputManager::handleEvents(map, InputSource(0, 0), handler);
+        ball.act();
     }
 
     class Handler: public InputHandler<Input> {
@@ -320,12 +372,14 @@ public:
 
         field.draw(work, camera);
         drawPlayers(work);
+        ball.draw(work, camera);
 
         work.finish();
     }
 
     Camera camera;
     Field field;
+    Ball ball;
     Team team1;
     Team team2;
     Handler handler;
