@@ -71,7 +71,7 @@ public:
     bool quit;
     Handler handler;
     InputMap<Input> map;
-    World world;
+    Dodgeball::World world;
 };
 
 static void run(){

@@ -1,10 +1,13 @@
 #include "world.h"
 #include "util/graphics/bitmap.h"
 #include "util/input/input-manager.h"
+#include "util/funcs.h"
 
 #include <math.h>
 
 using std::vector;
+
+namespace Dodgeball{
 
 Camera::Camera():
 x(0),
@@ -186,9 +189,9 @@ control(false){
     map.set(Keyboard::Key_A, Action);
 }
 
-void Player::act(){
+void Player::act(World & world){
     if (control){
-        doInput();
+        doInput(world);
     }
 }
 
@@ -196,7 +199,7 @@ void Player::setControl(bool what){
     this->control = what;
 }
 
-void Player::doInput(){
+void Player::doInput(World & world){
     class Handler: public InputHandler<Input> {
     public:
         Handler(Player & player):
@@ -262,11 +265,14 @@ void Player::doInput(){
     }
 
     if (handler.action){
-        doAction();
+        doAction(world);
     }
 }
 
-void Player::doAction(){
+void Player::doAction(World & world){
+    if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 10){
+        world.getBall().grab(this);
+    }
 }
 
 void Player::moveLeft(double speed){
@@ -317,17 +323,30 @@ void Team::draw(const Graphics::Bitmap & work, const Camera & camera){
     }
 }
 
-void Team::act(){
+void Team::act(World & world){
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
-        player->act();
+        player->act(world);
     }
 }
 
 Ball::Ball(double x, double y):
 x(x),
 y(y),
-angle(Util::rnd(360)){
+angle(Util::rnd(360)),
+grabbed(false),
+moving(false),
+holder(NULL){
+}
+
+void Ball::grab(Player * holder){
+    grabbed = true;
+    moving = false;
+    this->holder = holder;
+}
+    
+void Ball::ungrab(){
+    grabbed = false;
 }
 
 double Ball::getX() const {
@@ -339,9 +358,16 @@ double Ball::getY() const {
 }
 
 void Ball::act(){
-    angle += 1;
-    if (angle > 360){
-        angle -= 360;
+    if (grabbed && holder != NULL){
+        this->x = holder->getX();
+        this->y = holder->getY();
+    }
+
+    if (moving){
+        angle += 1;
+        if (angle > 360){
+            angle -= 360;
+        }
     }
 }
 
@@ -431,8 +457,8 @@ void World::run(){
 
     InputManager::handleEvents(map, InputSource(0, 0), handler);
     ball.act();
-    team1.act();
-    team2.act();
+    team1.act(*this);
+    team2.act(*this);
 
     camera.moveTowards(ball.getX(), ball.getY());
 }
@@ -467,4 +493,10 @@ void World::draw(const Graphics::Bitmap & screen){
     ball.draw(work, camera);
 
     work.finish();
+}
+    
+Ball & World::getBall(){
+    return ball;
+}
+
 }

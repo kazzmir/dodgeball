@@ -9,6 +9,10 @@ namespace Graphics{
     class Bitmap;
 }
 
+namespace Dodgeball{
+
+class World;
+
 class Camera{
 public:
     Camera();
@@ -87,12 +91,12 @@ public:
         bool down;
     } hold;
 
-    void act();
+    void act(World & world);
     void setControl(bool what);
 
-    void doInput();
+    void doInput(World & world);
 
-    void doAction();
+    void doAction(World & world);
 
     void moveLeft(double speed);
     void moveRight(double speed);
@@ -120,7 +124,7 @@ public:
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
-    void act();
+    void act(World & world);
 
 protected:
     std::vector<Util::ReferenceCount<Player> > players;
@@ -133,6 +137,9 @@ public:
     double getX() const;
     double getY() const;
 
+    void grab(Player * holder);
+    void ungrab();
+
     void act();
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
@@ -140,6 +147,11 @@ public:
     double x;
     double y;
     double angle;
+
+    /* true if being grabbed */
+    bool grabbed;
+    bool moving;
+    Player * holder;
 };
 
 class World{
@@ -165,6 +177,8 @@ public:
     void drawPlayers(const Graphics::Bitmap & work);
     void draw(const Graphics::Bitmap & screen);
 
+    Ball & getBall();
+
     Camera camera;
     Field field;
     Ball ball;
@@ -172,5 +186,7 @@ public:
     Team team2;
     InputMap<Input> map;
 };
+
+}
 
 #endif
