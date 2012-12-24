@@ -426,8 +426,38 @@ double Player::getY() const {
     return y;
 }
 
-Team::Team(const Field & field){
-    players.push_back(Util::ReferenceCount<Player>(new Player(Util::rnd(field.getWidth()), Util::rnd(field.getHeight()))));
+Team::Team(Side side, const Field & field):
+side(side){
+    switch (side){
+        case LeftSide: populateLeft(field); break;
+        case RightSide: populateRight(field); break;
+    }
+}
+
+static Util::ReferenceCount<Player> makePlayer(double x, double y){
+    return Util::ReferenceCount<Player>(new Player(x, y));
+}
+
+void Team::populateLeft(const Field & field){
+    double width = field.getWidth() / 2;
+    double height = field.getHeight();
+    players.push_back(makePlayer(width / 5, height / 2));
+    players.push_back(makePlayer(width / 2, height / 4));
+    players.push_back(makePlayer(width / 2, height * 3 / 4));
+    players.push_back(makePlayer(0, height / 2));
+    players.push_back(makePlayer(width / 2, 0));
+    players.push_back(makePlayer(width / 2, height));
+}
+
+void Team::populateRight(const Field & field){
+    double width = field.getWidth() / 2;
+    double height = field.getHeight();
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4));
+    players.push_back(makePlayer(field.getWidth() - 0, height / 2));
+    players.push_back(makePlayer(field.getWidth() - width / 2, 0));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height));
 }
 
 void Team::enableControl(){
@@ -562,8 +592,8 @@ void Ball::draw(const Graphics::Bitmap & work, const Camera & camera){
 World::World():
 field(1200, 600),
 ball(400, 300),
-team1(field),
-team2(field){
+team1(Team::LeftSide, field),
+team2(Team::RightSide, field){
     camera.moveTo(field.getWidth() / 2, field.getHeight() / 2);
     map.set(Keyboard::Key_LEFT, Left);
     map.set(Keyboard::Key_RIGHT, Right);

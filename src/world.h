@@ -135,7 +135,12 @@ protected:
 
 class Team{
 public:
-    Team(const Field & field);
+    enum Side{
+        LeftSide,
+        RightSide
+    };
+
+    Team(Side side, const Field & field);
 
     void enableControl();
 
@@ -144,7 +149,11 @@ public:
     void act(World & world);
 
 protected:
+    void populateLeft(const Field & field);
+    void populateRight(const Field & field);
+
     std::vector<Util::ReferenceCount<Player> > players;
+    Side side;
 };
 
 class Ball{
