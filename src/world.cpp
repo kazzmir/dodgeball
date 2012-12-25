@@ -497,11 +497,22 @@ void Player::throwBall(World & world, Ball & ball){
 
     Util::ReferenceCount<Player> enemy = world.getTarget(*this);
 
-    double angle = findAngle(getX(), getY(), enemy->getX(), enemy->getY());
+    double angle = findAngle(getX(), getY(), enemy->getX() + Util::rnd(-5, 5), enemy->getY() + Util::rnd(-5, 5));
 
     double speed = 9 + sqrt(velocityX * velocityX + velocityY * velocityY);
+
+    double vx = 0;
+    if (z > 0){
+        /* always aim at the ground so enemy z = 0 */
+        double hypotenuse = Util::distance(getX(), getY(), getZ(), enemy->getX(), enemy->getY(), 0);
+
+        double ground = Util::distance(getX(), getY(), enemy->getX(), enemy->getY());
+
+        // double zangle = asin(ground / hypotenuse);
+        vx = -ground / hypotenuse;
+    }
     
-    ball.doThrow(cos(angle) * speed, sin(angle) * speed, 0);
+    ball.doThrow(cos(angle) * speed, sin(angle) * speed, vx);
 
     /*
 
@@ -650,6 +661,10 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
 
 double Player::getX() const {
     return x;
+}
+    
+double Player::getZ() const {
+    return z;
 }
     
 double Player::getY() const {
@@ -829,6 +844,7 @@ void Ball::act(const Field & field){
         } else {
             /* When the ball hits the ground its not being thrown anymore */
             thrown = false;
+            timeInAir = 0;
 
             velocityZ = -velocityZ / 2;
             if (velocityZ < gravity){

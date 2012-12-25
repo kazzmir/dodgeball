@@ -159,6 +159,7 @@ public:
     double getHandPosition() const;
     double getX() const;
     double getY() const;
+    double getZ() const;
     void setX(double x);
     void setY(double y);
 
