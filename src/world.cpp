@@ -183,33 +183,269 @@ void Field::draw(const Graphics::Bitmap & work, const Camera & camera){
                        camera.computeX(x2), camera.computeY(y2 - margin),
                        white);
 }
+    
+Behavior::Behavior(){
+}
 
-Player::Player(double x, double y, const Graphics::Color & color, const Box & box):
+Behavior::~Behavior(){
+}
+
+class HumanBehavior: public Behavior {
+public:
+    enum Input{
+        Left,
+        Right,
+        Up,
+        Down,
+        Jump,
+        Action
+    };
+
+    HumanBehavior():
+    control(false),
+    runningLeft(false),
+    runningRight(false){
+        map.set(Keyboard::Key_LEFT, Left);
+        map.set(Keyboard::Key_RIGHT, Right);
+        map.set(Keyboard::Key_UP, Up);
+        map.set(Keyboard::Key_DOWN, Down);
+        map.set(Keyboard::Key_A, Action);
+        map.set(Keyboard::Key_SPACE, Jump);
+    }
+
+    void act(World & world, Player & player){
+        if (control){
+            doInput(world, player);
+        }
+    }
+
+    void doInput(World & world, Player & player){
+        class Handler: public InputHandler<Input> {
+        public:
+            Handler(HumanBehavior & human):
+            human(human),
+            action(false),
+            jump(false){
+            }
+
+            HumanBehavior & human;
+            bool action;
+            bool jump;
+
+            void press(const Input & out, Keyboard::unicode_t unicode){
+                switch (out){
+                    case Left: {
+                        human.left.press();
+                        break;
+                    }
+                    case Right: {
+                        human.right.press();
+                        break;
+                    }
+                    case Up: {
+                        human.up.press();
+                        break;
+                    }
+                    case Down: {
+                        human.down.press();
+                        break;
+                    }
+                    case Action: {
+                        action = true;
+                        break;
+                    }
+                    case Jump: {
+                        jump = true;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+
+            }
+
+            void release(const Input & out, Keyboard::unicode_t unicode){
+                switch (out){
+                    case Left: {
+                        human.left.release();
+                        break;
+                    }
+                    case Right: {
+                        human.right.release();
+                        break;
+                    }
+                    case Up: {
+                        human.up.release();
+                        break;
+                    }
+                    case Down: {
+                        human.down.release();
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+            }
+        };
+
+        left.act();
+        right.act();
+        up.act();
+        down.act();
+
+        Handler handler(*this);
+        InputManager::handleEvents(map, InputSource(0, 0), handler);
+
+        if (player.getZ() <= 0){
+            if (handler.jump){
+                runningLeft = false;
+                runningRight = false;
+                player.doJump();
+            } else {
+                if (!runningLeft && !runningRight){
+                    if (left.getCount() >= 2){
+                        runningLeft = true;
+                    } else if (right.getCount() >= 2){
+                        runningRight = true;
+                    } else {
+                        /* just walking */
+
+                        double speed = 4;
+
+                        bool holdLeft = left.isPressed();
+                        bool holdRight = right.isPressed();
+                        bool holdUp = up.isPressed();
+                        bool holdDown = down.isPressed();
+
+                        if (holdLeft){
+                            player.moveLeft(speed);
+                        }
+
+                        if (holdRight){
+                            player.moveRight(speed);
+                        }
+
+                        if (holdUp){
+                            player.moveUp(speed);
+                        }
+
+                        if (holdDown){
+                            player.moveDown(speed);
+                        }
+
+                        if (holdLeft && !holdRight && !holdUp && !holdDown){
+                            player.setFacing(Player::FaceLeft);
+                        }
+
+                        if (holdLeft && holdUp && !holdRight && !holdDown){
+                            player.setFacing(Player::FaceUpLeft);
+                        }
+
+                        if (holdLeft && holdDown && !holdRight && !holdUp){
+                            player.setFacing(Player::FaceDownLeft);
+                        }
+
+                        if (holdRight && !holdLeft && !holdUp && !holdDown){
+                            player.setFacing(Player::FaceRight);
+                        }
+
+                        if (holdRight && holdUp && !holdLeft && !holdDown){
+                            player.setFacing(Player::FaceUpRight);
+                        }
+
+                        if (holdRight && holdDown && !holdLeft && !holdUp){
+                            player.setFacing(Player::FaceDownRight);
+                        }
+
+                        if (holdUp && !holdDown && !holdLeft && !holdRight){
+                            player.setFacing(Player::FaceUp);
+                        }
+
+                        if (holdDown && !holdUp && !holdLeft && !holdRight){
+                            player.setFacing(Player::FaceDown);
+                        }
+                    }
+                } else {
+                    double runSpeed = 1.5;
+                    if (runningLeft){
+                        if (!left.isPressed()){
+                            runningLeft = false;
+                        } else {
+                            player.runLeft(runSpeed);
+                        }
+                    } else if (runningRight){
+                        if (!right.isPressed()){
+                            runningRight = false;
+                        } else {
+                            player.runRight(runSpeed);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (handler.action){
+            player.doAction(world);
+        }
+    }
+    
+    void setControl(bool what){
+        this->control = what;
+    }
+
+    bool hasControl() const {
+        return this->control;
+    }
+    
+    InputMap<Input> map;
+    bool control;
+
+    Hold left;
+    Hold right;
+    Hold up;
+    Hold down;
+
+    bool runningLeft;
+    bool runningRight;
+};
+
+class DummyBehavior: public Behavior {
+public:
+    void act(World & world, Player & player){
+    }
+
+    void setControl(bool what){
+    }
+
+    bool hasControl() const {
+        return false;
+    }
+};
+
+Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior):
 x(x),
 y(y),
 z(0),
 velocityX(0),
 velocityY(0),
 velocityZ(0),
-runningLeft(false),
-runningRight(false),
-control(false),
 hasBall(false),
 facing(FaceRight),
 limit(box),
-color(color){
-    map.set(Keyboard::Key_LEFT, Left);
-    map.set(Keyboard::Key_RIGHT, Right);
-    map.set(Keyboard::Key_UP, Up);
-    map.set(Keyboard::Key_DOWN, Down);
-    map.set(Keyboard::Key_A, Action);
-    map.set(Keyboard::Key_SPACE, Jump);
+color(color),
+behavior(behavior){
 }
 
 void Player::act(World & world){
+    behavior->act(world, *this);
+
+    /*
     if (control){
         doInput(world);
     }
+    */
 
     if (z > 0){
         velocityZ -= gravity;
@@ -271,6 +507,10 @@ double Player::getWidth() const {
 double Player::getHeight() const {
     return 130;
 }
+    
+void Player::setFacing(Facing face){
+    this->facing = face;
+}
 
 double Player::getX1() const {
     return getX() - getWidth() / 2;
@@ -281,11 +521,11 @@ double Player::getY1() const {
 }
 
 void Player::setControl(bool what){
-    this->control = what;
+    behavior->setControl(what);
 }
     
 bool Player::hasControl() const {
-    return this->control;
+    return behavior->hasControl();
 }
     
 double Player::getHandPosition() const {
@@ -330,181 +570,8 @@ void Hold::release(){
     last = Release;
 }
 
-void Player::doInput(World & world){
-    class Handler: public InputHandler<Input> {
-    public:
-        Handler(Player & player, World & world):
-        player(player),
-        world(world),
-        action(false),
-        jump(false){
-        }
-
-        Player & player;
-        World & world;
-        bool action;
-        bool jump;
-
-        void press(const Input & out, Keyboard::unicode_t unicode){
-            switch (out){
-                case Left: {
-                    player.left.press();
-                    break;
-                }
-                case Right: {
-                    player.right.press();
-                    break;
-                }
-                case Up: {
-                    player.up.press();
-                    break;
-                }
-                case Down: {
-                    player.down.press();
-                    break;
-                }
-                case Action: {
-                    action = true;
-                    break;
-                }
-                case Jump: {
-                    jump = true;
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
-
-        }
-
-        void release(const Input & out, Keyboard::unicode_t unicode){
-            switch (out){
-                case Left: {
-                    player.left.release();
-                    break;
-                }
-                case Right: {
-                    player.right.release();
-                    break;
-                }
-                case Up: {
-                    player.up.release();
-                    break;
-                }
-                case Down: {
-                    player.down.release();
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
-        }
-    };
-
-    left.act();
-    right.act();
-    up.act();
-    down.act();
-
-    Handler handler(*this, world);
-    InputManager::handleEvents(map, InputSource(0, 0), handler);
-
-    if (z <= 0){
-        if (handler.jump){
-            doJump();
-        } else {
-            if (!runningLeft && !runningRight){
-                if (left.getCount() >= 2){
-                    runningLeft = true;
-                } else if (right.getCount() >= 2){
-                    runningRight = true;
-                } else {
-                    /* just walking */
-
-                    double speed = 4;
-
-                    bool holdLeft = left.isPressed();
-                    bool holdRight = right.isPressed();
-                    bool holdUp = up.isPressed();
-                    bool holdDown = down.isPressed();
-
-                    if (holdLeft){
-                        moveLeft(speed);
-                    }
-
-                    if (holdRight){
-                        moveRight(speed);
-                    }
-
-                    if (holdUp){
-                        moveUp(speed);
-                    }
-
-                    if (holdDown){
-                        moveDown(speed);
-                    }
-
-                    if (holdLeft && !holdRight && !holdUp && !holdDown){
-                        facing = FaceLeft;
-                    }
-
-                    if (holdLeft && holdUp && !holdRight && !holdDown){
-                        facing = FaceUpLeft;
-                    }
-
-                    if (holdLeft && holdDown && !holdRight && !holdUp){
-                        facing = FaceDownLeft;
-                    }
-
-                    if (holdRight && !holdLeft && !holdUp && !holdDown){
-                        facing = FaceRight;
-                    }
-
-                    if (holdRight && holdUp && !holdLeft && !holdDown){
-                        facing = FaceUpRight;
-                    }
-
-                    if (holdRight && holdDown && !holdLeft && !holdUp){
-                        facing = FaceDownRight;
-                    }
-
-                    if (holdUp && !holdDown && !holdLeft && !holdRight){
-                        facing = FaceUp;
-                    }
-
-                    if (holdDown && !holdUp && !holdLeft && !holdRight){
-                        facing = FaceDown;
-                    }
-                }
-            } else {
-                double runSpeed = 1.5;
-                if (runningLeft){
-                    if (!left.isPressed()){
-                        runningLeft = false;
-                    } else {
-                        runLeft(runSpeed);
-                    }
-                } else if (runningRight){
-                    if (!right.isPressed()){
-                        runningRight = false;
-                    } else {
-                        runRight(runSpeed);
-                    }
-                }
-            }
-        }
-    }
-
-    if (handler.action){
-        doAction(world);
-    }
-}
 
 void Player::doJump(){
-    runningLeft = false;
-    runningRight = false;
     velocityZ = jumpVelocity;
     /* set the z to some initial value above 0 so that it doesn't look like we
      * are hitting the ground.
@@ -712,8 +779,8 @@ const std::vector<Util::ReferenceCount<Player> > & Team::getPlayers() const {
     return players;
 }
 
-static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box){
-    return Util::ReferenceCount<Player>(new Player(x, y, color, box));
+static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior){
+    return Util::ReferenceCount<Player>(new Player(x, y, color, box, behavior));
 }
 
 void Team::populateLeft(const Field & field){
@@ -721,25 +788,25 @@ void Team::populateLeft(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
     Graphics::Color color(Graphics::makeColor(255, 0, 0));
-    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height)));
-    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height)));
-    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height)));
-    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width / 2, -10, field.getWidth(), -10)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width / 2, height + 10, field.getWidth(), height + 10)));
+    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
+    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
+    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
+    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width / 2, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width / 2, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior())));
 }
 
 void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
     Graphics::Color color(Graphics::makeColor(0x00, 0xaf, 0x64));
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height)));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height)));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
 
-    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height)));
-    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10)));
-    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10)));
+    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
+    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new DummyBehavior())));
+    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new DummyBehavior())));
 }
 
 void Team::enableControl(){

@@ -14,6 +14,7 @@ namespace Dodgeball{
 
 class World;
 class Ball;
+class Player;
 
 class Camera{
 public:
@@ -108,6 +109,15 @@ struct Hold{
     void release();
 };
 
+class Behavior{
+public:
+    Behavior();
+    virtual ~Behavior();
+    virtual void act(World & world, Player & player) = 0;
+    virtual void setControl(bool what) = 0;
+    virtual bool hasControl() const = 0;
+};
+
 class Player{
 public:
     enum Facing{
@@ -121,23 +131,11 @@ public:
         FaceDownRight
     };
 
-    enum Input{
-        Left,
-        Right,
-        Up,
-        Down,
-        Jump,
-        Action
-    };
-
-    Player(double x, double y, const Graphics::Color & color, const Box & box);
-    Hold hold;
+    Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior);
 
     void act(World & world);
     void setControl(bool what);
     bool hasControl() const;
-
-    void doInput(World & world);
 
     void doAction(World & world);
     void throwBall(World & world, Ball & ball);
@@ -172,8 +170,10 @@ public:
     void setX(double x);
     void setY(double y);
 
-protected:
+    void setFacing(Facing face);
     void doJump();
+
+protected:
 
     double x;
     double y;
@@ -186,21 +186,12 @@ protected:
     static const double jumpVelocity = 15;
     static double maxRunSpeed;
 
-    bool runningLeft;
-    bool runningRight;
-
-    /* true if the human player is controlling this guy */
-    bool control;
     bool hasBall;
     Facing facing;
-    InputMap<Input> map;
     Box limit;
     Graphics::Color color;
 
-    Hold left;
-    Hold right;
-    Hold up;
-    Hold down;
+    Util::ReferenceCount<Behavior> behavior;
 };
 
 class Team{
