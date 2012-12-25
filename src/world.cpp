@@ -503,13 +503,33 @@ void Player::throwBall(World & world, Ball & ball){
 
     double vx = 0;
     if (z > 0){
-        /* always aim at the ground so enemy z = 0 */
-        double hypotenuse = Util::distance(getX(), getY(), getZ(), enemy->getX(), enemy->getY(), 0);
+        /* distance = velocity * time
+         * d = vt
+         *
+         * The distance traveled in the x-y plane (when z = 0) is
+         * the distance from the player's x,y to the enemy's x,y.
+         * Velocity is the speed variable above. So the time is
+         *   t = d/v
+         *
+         * We want the ball to start at some z height and reach 0 when the
+         * x-y distance is traveled so
+         *   zdist = zv * zt
+         * zt is the same as the x-y t
+         *   zt = t
+         *
+         * So we can equate the distances and the times. The z distance is exactly
+         * the z height of where the ball starts.
+         *
+         *   d/v = zd/zv
+         *
+         * Solve for zv
+         * 
+         *   zv = zd*v/d
+         */
 
         double ground = Util::distance(getX(), getY(), enemy->getX(), enemy->getY());
 
-        // double zangle = asin(ground / hypotenuse);
-        vx = -ground / hypotenuse;
+        vx = -(getHandPosition() + Util::rnd(-5, 5)) * speed / ground;
     }
     
     ball.doThrow(cos(angle) * speed, sin(angle) * speed, vx);
@@ -847,7 +867,7 @@ void Ball::act(const Field & field){
             timeInAir = 0;
 
             velocityZ = -velocityZ / 2;
-            if (velocityZ < gravity){
+            if (fabs(velocityZ) < gravity){
                 velocityZ = 0;
             }
             z = 0;
