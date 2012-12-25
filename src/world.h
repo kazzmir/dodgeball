@@ -142,6 +142,8 @@ public:
     void doAction(World & world);
     void throwBall(World & world, Ball & ball);
     
+    void collided(Ball & ball);
+    
     Box collisionBox() const;
 
     void moveLeft(double speed);
@@ -154,6 +156,13 @@ public:
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     int getFacingAngle() const;
+
+    /* upper left x/y for collision detection */
+    double getX1() const;
+    double getY1() const;
+
+    double getWidth() const;
+    double getHeight() const;
 
     /* Height of where the hands are */
     double getHandPosition() const;
@@ -210,6 +219,10 @@ public:
     void enableControl();
     void cycleControl();
 
+    Side getSide() const;
+            
+    void collisionDetection(Ball & ball);
+
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     void act(World & world);
@@ -232,14 +245,24 @@ public:
     double getY() const;
     double getZ() const;
 
+    double getX1() const;
+    double getY1() const;
+
+    double getVelocityX() const;
+    double getVelocityY() const;
+
+    void collided(Player & player);
+
     void grab(Player * holder);
     void ungrab();
 
     void act(const Field & field);
 
+    bool isThrown() const;
+
     Box collisionBox() const;
 
-    void doThrow(double velocityX, double velocityY, double velocityZ);
+    void doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
@@ -259,6 +282,7 @@ public:
     bool grabbed;
     bool thrown;
     Player * holder;
+    Team::Side thrownBy;
 };
 
 class World{
@@ -286,9 +310,13 @@ public:
     void drawPlayers(const Graphics::Bitmap & work);
     void draw(const Graphics::Bitmap & screen);
 
+    void collisionDetection();
+
+    Team::Side findTeam(const Player & player);
+
     unsigned int getTime() const;
 
-    bool onTeam(const Team & team, Player & who);
+    bool onTeam(const Team & team, const Player & who);
 
     const Field & getField() const;
     Ball & getBall();

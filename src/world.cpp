@@ -256,6 +256,29 @@ void Player::act(World & world){
     }
 
 }
+    
+void Player::collided(Ball & ball){
+    velocityX = ball.getVelocityX();
+    velocityY = 0;
+    velocityZ = 8;
+    z = 0.1;
+}
+    
+double Player::getWidth() const {
+    return 30;
+}
+
+double Player::getHeight() const {
+    return 130;
+}
+
+double Player::getX1() const {
+    return getX() - getWidth() / 2;
+}
+
+double Player::getY1() const {
+    return getY() - getZ() - getHeight();
+}
 
 void Player::setControl(bool what){
     this->control = what;
@@ -266,7 +289,7 @@ bool Player::hasControl() const {
 }
     
 double Player::getHandPosition() const {
-    return z + 50;
+    return getZ() + 50;
 }
     
 Box Player::collisionBox() const {
@@ -494,7 +517,6 @@ double findAngle(double x1, double y1, double x2, double y2){
 }
 
 void Player::throwBall(World & world, Ball & ball){
-
     Util::ReferenceCount<Player> enemy = world.getTarget(*this);
 
     double angle = findAngle(getX(), getY(), enemy->getX() + Util::rnd(-5, 5), enemy->getY() + Util::rnd(-5, 5));
@@ -532,66 +554,7 @@ void Player::throwBall(World & world, Ball & ball){
         vx = -(getHandPosition() + Util::rnd(-5, 5)) * speed / ground;
     }
     
-    ball.doThrow(cos(angle) * speed, sin(angle) * speed, vx);
-
-    /*
-
-    double vx = 0;
-    double vy = 0;
-    double vz = 0;
-    switch (facing){
-        case FaceLeft: {
-            vx = -10;
-            vy = 0;
-            vz = 0;
-            break;
-        }
-        case FaceRight: {
-            vx = 10;
-            vy = 0;
-            vz = 0;
-            break;
-        }
-        case FaceUp: {
-            vx = 0;
-            vy = -10;
-            vz = 0;
-            break;
-        }
-        case FaceDown: {
-            vx = 0;
-            vy = 10;
-            vz = 0;
-            break;
-        }
-        case FaceUpLeft: {
-            vx = -8;
-            vy = -8;
-            vz = 0;
-            break;
-        }
-        case FaceUpRight: {
-            vx = 8;
-            vy = -8;
-            vz = 0;
-            break;
-        }
-        case FaceDownLeft: {
-            vx = -8;
-            vy = 8;
-            vz = 0;
-            break;
-        }
-        case FaceDownRight: {
-            vx = 8;
-            vy = 8;
-            vz = 0;
-            break;
-        }
-    }
-
-    ball.doThrow(vx + velocityX, vy + velocityY, vz);
-    */
+    ball.doThrow(world, *this, cos(angle) * speed, sin(angle) * speed, vx);
 }
 
 void Player::doAction(World & world){
@@ -658,8 +621,8 @@ int Player::getFacingAngle() const {
 }
 
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
-    int width = 30;
-    int height = 130;
+    int width = getWidth();
+    int height = getHeight();
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
 
     double facingX = cos(Util::radians(getFacingAngle())) * 40;
@@ -707,6 +670,44 @@ side(side){
     }
 }
     
+Team::Side Team::getSide() const {
+    return side;
+}
+
+static bool boxCollide( int zx1, int zy1, int zx2, int zy2, int zx3, int zy3, int zx4, int zy4 ){
+    if (zx1 < zx3 && zx1 < zx4 &&
+         zx2 < zx3 && zx2 < zx4) return false;
+    if (zx1 > zx3 && zx1 > zx4 &&
+         zx2 > zx3 && zx2 > zx4) return false;
+    if (zy1 < zy3 && zy1 < zy4 &&
+         zy2 < zy3 && zy2 < zy4) return false;
+    if (zy1 > zy3 && zy1 > zy4 &&
+         zy2 > zy3 && zy2 > zy4) return false;
+
+    return true;
+}
+
+static bool boxCollide(double x1, double y1, const Box & box1,
+                       double x2, double y2, const Box & box2){
+    return boxCollide(x1 + box1.x1, y1 + box1.y1, x1 + box1.x2, y1 + box1.y2,
+                      x2 + box2.x1, y2 + box2.y1, x2 + box2.x2, y2 + box2.y2);
+}
+
+void Team::collisionDetection(Ball & ball){
+    Box ballBox = ball.collisionBox();
+    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+        Util::ReferenceCount<Player> player = *it;
+        Box playerBox = player->collisionBox();
+        
+        if (boxCollide(player->getX1(), player->getY1(), playerBox,
+                       ball.getX1(), ball.getY1(), ballBox)){
+            player->collided(ball);
+            ball.collided(*player);
+            break;
+        }
+    }
+}
+
 const std::vector<Util::ReferenceCount<Player> > & Team::getPlayers() const {
     return players;
 }
@@ -827,8 +828,36 @@ void Ball::ungrab(){
     grabbed = false;
     holder = NULL;
 }
+    
+double Ball::getVelocityX() const {
+    return velocityX;
+}
 
-void Ball::doThrow(double velocityX, double velocityY, double velocityZ){
+double Ball::getVelocityY() const {
+    return velocityY;
+}
+
+void Ball::collided(Player & player){
+    thrown = false;
+    timeInAir = 0;
+}
+    
+double Ball::getX1() const {
+    int size = 25;
+    return getX() - size / 2;
+}
+
+double Ball::getY1() const {
+    int size = 25;
+    return getY() - size / 2;
+}
+    
+bool Ball::isThrown() const {
+    return thrown;
+}
+
+void Ball::doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ){
+    thrownBy = world.findTeam(player);
     ungrab();
     thrown = true;
     timeInAir = 200;
@@ -950,6 +979,16 @@ team2(Team::RightSide, field){
     team1.enableControl();
 }
 
+void World::collisionDetection(){
+    if (ball.isThrown()){
+        if (ball.thrownBy == team1.getSide()){
+            team2.collisionDetection(ball);
+        } else {
+            team1.collisionDetection(ball);
+        }
+    }
+}
+
 void World::run(){
     class Handler: public InputHandler<Input> {
     public:
@@ -1003,6 +1042,8 @@ void World::run(){
     team2.act(*this);
     ball.act(field);
 
+    collisionDetection();
+
     camera.moveTowards(ball.getX(), ball.getY());
 }
 
@@ -1050,7 +1091,7 @@ unsigned int World::getTime() const {
     return time;
 }
 
-bool World::onTeam(const Team & team, Player & who){
+bool World::onTeam(const Team & team, const Player & who){
     for (vector<Util::ReferenceCount<Player> >::const_iterator it = team.getPlayers().begin(); it != team.getPlayers().end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
         if (player == &who){
@@ -1065,6 +1106,13 @@ Util::ReferenceCount<Player> World::getTarget(Player & who){
         return team2.getPlayers()[0];
     }
     return team1.getPlayers()[0];
+}
+    
+Team::Side World::findTeam(const Player & player){
+    if (onTeam(team1, player)){
+        return team1.getSide();
+    }
+    return team2.getSide();
 }
 
 }
