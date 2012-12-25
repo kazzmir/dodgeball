@@ -50,6 +50,7 @@ public:
     double getY() const;
 
     void setX(double x);
+    void setY(double y);
 
     double getZoom() const;
 
@@ -133,7 +134,7 @@ public:
         FaceDownRight
     };
 
-    Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior);
+    Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline);
 
     void act(World & world);
     void setControl(bool what);
@@ -168,6 +169,8 @@ public:
 
     double getWidth() const;
     double getHeight() const;
+    
+    bool onSideline() const;
 
     /* Height of where the hands are */
     double getHandPosition() const;
@@ -203,6 +206,8 @@ protected:
     Facing facing;
     Box limit;
     Graphics::Color color;
+    /* true if on the sideline */
+    bool sideline;
 
     Util::ReferenceCount<Behavior> behavior;
 };
@@ -305,6 +310,7 @@ public:
     void run();
     
     Util::ReferenceCount<Player> getTarget(Player & who);
+    Util::ReferenceCount<Player> getTarget(const std::vector<Util::ReferenceCount<Player> > & players, Player & who);
 
     void moveLeft();
     void moveRight();

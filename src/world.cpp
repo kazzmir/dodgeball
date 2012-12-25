@@ -32,6 +32,10 @@ void Camera::setX(double x){
     this->x = x;
 }
 
+void Camera::setY(double y){
+    this->y = y;
+}
+
 void Camera::normalZoom(){
     zoom = 1;
 }
@@ -475,7 +479,7 @@ public:
     }
 };
 
-Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior):
+Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline):
 x(x),
 y(y),
 z(0),
@@ -486,7 +490,12 @@ hasBall_(false),
 facing(FaceRight),
 limit(box),
 color(color),
+sideline(sideline),
 behavior(behavior){
+}
+
+bool Player::onSideline() const {
+    return sideline;
 }
 
 bool Player::hasBall() const {
@@ -855,8 +864,8 @@ const std::vector<Util::ReferenceCount<Player> > & Team::getPlayers() const {
     return players;
 }
 
-static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior){
-    return Util::ReferenceCount<Player>(new Player(x, y, color, box, behavior));
+static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline){
+    return Util::ReferenceCount<Player>(new Player(x, y, color, box, behavior, sideline));
 }
 
 void Team::populateLeft(const Field & field){
@@ -864,25 +873,25 @@ void Team::populateLeft(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
     Graphics::Color color(Graphics::makeColor(255, 0, 0));
-    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
-    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
-    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
-    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior())));
-    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width / 2, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior())));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width / 2, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior())));
+    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
+    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
+    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
+    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
+    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width / 2, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width / 2, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
 }
 
 void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
     Graphics::Color color(Graphics::makeColor(0x00, 0xaf, 0x64));
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior())));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior())));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false));
 
-    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new AIBehavior())));
-    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new AIBehavior())));
-    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new AIBehavior())));
+    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new AIBehavior()), true));
+    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new AIBehavior()), true));
+    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new AIBehavior()), true));
 }
 
 void Team::enableControl(){
@@ -1196,13 +1205,25 @@ void World::run(){
     collisionDetection();
 
     camera.moveTowards(ball.getX(), ball.getY());
-    if (camera.getX1() < -50 && camera.getX2() < field.getWidth()){
-        camera.setX(-50 + camera.getWidth() / 2);
+    int xbounds = 50;
+    int ybounds = 30;
+    if (camera.getX1() < -xbounds && camera.getX2() < field.getWidth()){
+        camera.setX(-xbounds + camera.getWidth() / 2);
     }
 
-    if (camera.getX2() > field.getWidth() + 50 && camera.getX1() > 0){
-        camera.setX(field.getWidth() + 50 - camera.getWidth() / 2);
+    if (camera.getX2() > field.getWidth() + xbounds && camera.getX1() > 0){
+        camera.setX(field.getWidth() + xbounds - camera.getWidth() / 2);
     }
+
+    /*
+    if (camera.getY1() < -ybounds && camera.getY2() < field.getHeight() + ybounds){
+        camera.setY(-ybounds + camera.getHeight() / 2);
+    }
+
+    if (camera.getY2() > field.getHeight() + ybounds && camera.getY1() > -ybounds){
+        camera.setY(field.getHeight() + ybounds - camera.getHeight() / 2);
+    }
+    */
 }
 
 void World::moveLeft(){
@@ -1244,7 +1265,7 @@ Ball & World::getBall(){
 const Field & World::getField() const {
     return field;
 }
-    
+
 unsigned int World::getTime() const {
     return time;
 }
@@ -1259,11 +1280,31 @@ bool World::onTeam(const Team & team, const Player & who){
     return false;
 }
 
+Util::ReferenceCount<Player> World::getTarget(const vector<Util::ReferenceCount<Player> > & players, Player & who){
+    Util::ReferenceCount<Player> best(NULL);
+    double bestAngle = 999;
+
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = players.begin(); it != players.end(); it++){
+        const Util::ReferenceCount<Player> & player = *it;
+        /* can't target sidelined players */
+        if (!player->onSideline()){
+            /* choose the player closest to angle 0, directly horizontal */
+            double angle = atan2(player->getY() - who.getY(), player->getX() - who.getX());
+            if (fabs(angle) < bestAngle){
+                bestAngle = angle;
+                best = player;
+            }
+        }
+    }
+
+    return best;
+}
+
 Util::ReferenceCount<Player> World::getTarget(Player & who){
     if (onTeam(team1, who)){
-        return team2.getPlayers()[0];
+        return getTarget(team2.getPlayers(), who);
     }
-    return team1.getPlayers()[0];
+    return getTarget(team1.getPlayers(), who);
 }
     
 Team::Side World::findTeam(const Player & player){
