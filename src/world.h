@@ -138,9 +138,10 @@ public:
     bool hasControl() const;
 
     void doAction(World & world);
-    void throwBall(World & world, Ball & ball);
     
     void collided(Ball & ball);
+
+    bool onGround() const;
     
     Box collisionBox() const;
 
@@ -183,6 +184,7 @@ public:
     void doJump();
 
 protected:
+    void throwBall(World & world, Ball & ball);
 
     double x;
     double y;

@@ -444,9 +444,9 @@ public:
     void act(World & world, Player & player){
         Ball & ball = world.getBall();
         if (player.hasBall()){
-            player.throwBall(world, ball);
+            player.doAction(world);
         } else {
-            if (!ball.isThrown() && insideBox(ball.getX(), ball.getY(), player.getLimit())){
+            if (player.onGround() && !ball.isThrown() && insideBox(ball.getX(), ball.getY(), player.getLimit())){
                 if (near(ball.getX(), ball.getY(), player.getX(), player.getY())){
                     player.doAction(world);
                 } else {
@@ -491,6 +491,10 @@ bool Player::hasBall() const {
     
 Box Player::getLimit() const {
     return limit;
+}
+    
+bool Player::onGround() const {
+    return getZ() <= gravity;
 }
     
 double Player::walkingSpeed() const {
