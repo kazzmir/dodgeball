@@ -452,6 +452,11 @@ static bool insideBox(double x, double y, const Box & box){
 
 class AIBehavior: public Behavior {
 public:
+    AIBehavior():
+    wantX(0),
+    wantY(0){
+    }
+
     static bool near(double x1, double y1, double x2, double y2){
         return Util::distance(x1, y1, x2, y2) < 20;
     }
@@ -465,11 +470,27 @@ public:
         if (player.hasBall()){
             player.doAction(world);
         } else {
-            if (player.onGround() && !ball.isThrown() && insideBox(ball.getX(), ball.getY(), player.getLimit())){
-                if (near(ball.getX(), ball.getY(), player.getX(), player.getY())){
-                    player.doAction(world);
+            if (player.onGround()){
+                if (!ball.isThrown() && insideBox(ball.getX(), ball.getY(), player.getLimit())){
+                    if (near(ball.getX(), ball.getY(), player.getX(), player.getY())){
+                        player.doAction(world);
+                    } else {
+                        moveTowards(player, ball.getX(), ball.getY());
+                    }
                 } else {
-                    moveTowards(player, ball.getX(), ball.getY());
+                    if (player.onSideline()){
+                        moveTowards(player,
+                                    (player.getLimit().x1 + player.getLimit().x2) / 2,
+                                    (player.getLimit().y1 + player.getLimit().y2) / 2);
+                    } else {
+                        if (wantX == 0 || wantY == 0 || Util::rnd(100) == 0){
+                            wantX = Util::rnd(player.getLimit().x1, player.getLimit().x2);
+                            wantY = Util::rnd(player.getLimit().y1, player.getLimit().y2);
+                        }
+                        if (Util::distance(player.getX(), player.getY(), wantX, wantY) > 3){
+                            moveTowards(player, wantX, wantY);
+                        }
+                    }
                 }
             }
         }
@@ -488,6 +509,9 @@ public:
     bool hasControl() const {
         return true;
     }
+
+    int wantX;
+    int wantY;
 };
 
 Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline):
@@ -790,10 +814,10 @@ void Player::moveDown(double speed){
 
 int Player::getFacingAngle() const {
     switch (facing){
-        case FaceUp: return 90;
-        case FaceDown: return 270;
-        case FaceLeft: return 180;
         case FaceRight: return 0;
+        case FaceUp: return 90;
+        case FaceLeft: return 180;
+        case FaceDown: return 270;
         case FaceUpLeft: return (90 + 180) / 2;
         case FaceUpRight: return (90 + 0) / 2;
         case FaceDownLeft: return (270 + 180) / 2;
@@ -1140,13 +1164,13 @@ void Ball::act(const Field & field){
         }
     }
 
-    if (x < 0 || x > field.getWidth()){
+    if (x < -10 || x > field.getWidth() + 10){
         timeInAir = 0;
-        velocityX = -velocityX;
+        velocityX = -velocityX / 2;
     }
-    if (y < 0 || y > field.getHeight()){
+    if (y < -10 || y > field.getHeight() + 10){
         timeInAir = 0;
-        velocityY = -velocityY;
+        velocityY = -velocityY / 2;
     }
 }
 
