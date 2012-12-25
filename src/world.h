@@ -141,6 +141,7 @@ public:
     bool hasControl() const;
 
     void doAction(World & world);
+    void doCatch();
     
     void collided(Ball & ball);
 
@@ -157,11 +158,15 @@ public:
     void runRight(double speed);
     void runLeft(double speed);
 
+    void grabBall(Ball & ball);
+
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     int getFacingAngle() const;
 
     bool hasBall() const;
+
+    bool isCatching() const;
 
     /* upper left x/y for collision detection */
     double getX1() const;
@@ -208,6 +213,8 @@ protected:
     Graphics::Color color;
     /* true if on the sideline */
     bool sideline;
+    /* positive if catching */
+    int catching;
 
     Util::ReferenceCount<Behavior> behavior;
 };
@@ -227,6 +234,7 @@ public:
 
     void enableControl();
     void cycleControl();
+    void giveControl(const Util::ReferenceCount<Player> & who);
 
     Side getSide() const;
             
@@ -321,6 +329,8 @@ public:
     void draw(const Graphics::Bitmap & screen);
 
     void collisionDetection();
+    
+    void giveControl(const Util::ReferenceCount<Player> & enemy);
 
     Team::Side findTeam(const Player & player);
 

@@ -206,6 +206,8 @@ public:
         Up,
         Down,
         Jump,
+        Catch,
+        /* Either throw or pick up ball */
         Action
     };
 
@@ -218,11 +220,12 @@ public:
         map.set(Keyboard::Key_UP, Up);
         map.set(Keyboard::Key_DOWN, Down);
         map.set(Keyboard::Key_A, Action);
+        map.set(Keyboard::Key_S, Catch);
         map.set(Keyboard::Key_SPACE, Jump);
     }
 
     void act(World & world, Player & player){
-        if (control){
+        if (control && !player.isCatching()){
             doInput(world, player);
         }
     }
@@ -233,11 +236,13 @@ public:
             Handler(HumanBehavior & human):
             human(human),
             action(false),
+            catching(false),
             jump(false){
             }
 
             HumanBehavior & human;
             bool action;
+            bool catching;
             bool jump;
 
             void press(const Input & out, Keyboard::unicode_t unicode){
@@ -256,6 +261,10 @@ public:
                     }
                     case Down: {
                         human.down.press();
+                        break;
+                    }
+                    case Catch: {
+                        catching = true;
                         break;
                     }
                     case Action: {
@@ -396,6 +405,8 @@ public:
 
         if (handler.action){
             player.doAction(world);
+        } else if (handler.catching){
+            player.doCatch();
         }
     }
     
@@ -491,7 +502,12 @@ facing(FaceRight),
 limit(box),
 color(color),
 sideline(sideline),
+catching(0),
 behavior(behavior){
+}
+
+bool Player::isCatching() const {
+    return catching > 0;
 }
 
 bool Player::onSideline() const {
@@ -515,6 +531,10 @@ double Player::walkingSpeed() const {
 }
 
 void Player::act(World & world){
+    if (catching > 0){
+        catching -= 1;
+    }
+
     behavior->act(world, *this);
 
     /*
@@ -669,6 +689,7 @@ double findAngle(double x1, double y1, double x2, double y2){
 
 void Player::throwBall(World & world, Ball & ball){
     Util::ReferenceCount<Player> enemy = world.getTarget(*this);
+    world.giveControl(enemy);
 
     double angle = findAngle(getX(), getY(), enemy->getX() + Util::rnd(-5, 5), enemy->getY() + Util::rnd(-5, 5));
 
@@ -707,6 +728,10 @@ void Player::throwBall(World & world, Ball & ball){
     
     ball.doThrow(world, *this, cos(angle) * speed, sin(angle) * speed, vx);
 }
+    
+void Player::doCatch(){
+    catching = 30;
+}
 
 void Player::doAction(World & world){
     if (hasBall()){
@@ -714,11 +739,17 @@ void Player::doAction(World & world){
         throwBall(world, ball);
         hasBall_ = false;
     } else {
-        if (world.getBall().getZ() < 1 && Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
-            world.getBall().grab(this);
-            hasBall_ = true;
+        if (world.getBall().getZ() < 1 &&
+            Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
+            grabBall(world.getBall());
         }
     }
+}
+
+void Player::grabBall(Ball & ball){
+    catching = 0;
+    ball.grab(this);
+    hasBall_ = true;
 }
 
 void Player::moveLeft(double speed){
@@ -790,6 +821,15 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), width / 2, height / 2, color);
+
+    int handx = camera.computeX(x + 10);
+    int handy = camera.computeY(y - getHandPosition());
+    Graphics::Color handColor = Graphics::makeColor(255, 255, 255);
+    if (isCatching()){
+        handColor = Graphics::makeColor(255, 255, 0);
+    }
+    work.ellipseFill(handx, handy, 16, 6, handColor);
+
     work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - z - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
 }
 
@@ -853,8 +893,13 @@ void Team::collisionDetection(Ball & ball){
         if (fabs(player->getY() - ball.getY()) <= 3 &&
             boxCollide(player->getX1(), player->getY1(), playerBox,
                        ball.getX1(), ball.getY1(), ballBox)){
-            player->collided(ball);
-            ball.collided(*player);
+
+            if (player->isCatching()){
+                player->grabBall(ball);
+            } else {
+                player->collided(ball);
+                ball.collided(*player);
+            }
             break;
         }
     }
@@ -909,6 +954,15 @@ void Team::cycleControl(){
             break;
         }
     }
+}
+    
+void Team::giveControl(const Util::ReferenceCount<Player> & who){
+    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+        Util::ReferenceCount<Player> player = *it;
+        player->setControl(false);
+    }
+
+    who->setControl(true);
 }
 
 bool yPosition(const Util::ReferenceCount<Player> & a,
@@ -992,8 +1046,8 @@ double Ball::getVelocityY() const {
 void Ball::collided(Player & player){
     thrown = false;
     timeInAir = 0;
-    velocityX = -velocityX;
-    velocityY = -velocityY;
+    velocityX = -velocityX / 2;
+    velocityY = -velocityY / 2;
 }
     
 double Ball::getX1() const {
@@ -1306,7 +1360,15 @@ Util::ReferenceCount<Player> World::getTarget(Player & who){
     }
     return getTarget(team1.getPlayers(), who);
 }
-    
+
+void World::giveControl(const Util::ReferenceCount<Player> & enemy){
+    if (onTeam(team1, *enemy)){
+        team1.giveControl(enemy);
+    } else {
+        team2.giveControl(enemy);
+    }
+}
+
 Team::Side World::findTeam(const Player & player){
     if (onTeam(team1, player)){
         return team1.getSide();
