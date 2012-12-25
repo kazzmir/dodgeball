@@ -140,7 +140,7 @@ public:
     void doInput(World & world);
 
     void doAction(World & world);
-    void throwBall(Ball & ball);
+    void throwBall(World & world, Ball & ball);
     
     Box collisionBox() const;
 
@@ -174,6 +174,7 @@ protected:
     double velocityZ;
 
     static const double jumpVelocity = 15;
+    static double maxRunSpeed;
 
     bool runningLeft;
     bool runningRight;
@@ -211,6 +212,7 @@ public:
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     void act(World & world);
+    const std::vector<Util::ReferenceCount<Player> > & getPlayers() const;
 
 protected:
     void populateLeft(const Field & field);
@@ -272,6 +274,8 @@ public:
     World();
 
     void run();
+    
+    Util::ReferenceCount<Player> getTarget(Player & who);
 
     void moveLeft();
     void moveRight();
@@ -282,6 +286,8 @@ public:
     void draw(const Graphics::Bitmap & screen);
 
     unsigned int getTime() const;
+
+    bool onTeam(const Team & team, Player & who);
 
     const Field & getField() const;
     Ball & getBall();

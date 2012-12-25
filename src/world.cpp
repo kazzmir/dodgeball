@@ -456,7 +456,7 @@ void Player::doInput(World & world){
                     }
                 }
             } else {
-                double runSpeed = 1.8;
+                double runSpeed = 1.5;
                 if (runningLeft){
                     if (!left.isPressed()){
                         runningLeft = false;
@@ -489,7 +489,22 @@ void Player::doJump(){
     z = 0.1;
 }
 
-void Player::throwBall(Ball & ball){
+double findAngle(double x1, double y1, double x2, double y2){
+    return atan2(y2 - y1, x2 - x1);
+}
+
+void Player::throwBall(World & world, Ball & ball){
+
+    Util::ReferenceCount<Player> enemy = world.getTarget(*this);
+
+    double angle = findAngle(getX(), getY(), enemy->getX(), enemy->getY());
+
+    double speed = 9 + sqrt(velocityX * velocityX + velocityY * velocityY);
+    
+    ball.doThrow(cos(angle) * speed, sin(angle) * speed, 0);
+
+    /*
+
     double vx = 0;
     double vy = 0;
     double vz = 0;
@@ -545,12 +560,13 @@ void Player::throwBall(Ball & ball){
     }
 
     ball.doThrow(vx + velocityX, vy + velocityY, vz);
+    */
 }
 
 void Player::doAction(World & world){
     if (hasBall){
         Ball & ball = world.getBall();
-        throwBall(ball);
+        throwBall(world, ball);
         hasBall = false;
     } else {
         if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
@@ -570,12 +586,20 @@ void Player::moveRight(double speed){
     // this->x += speed;
 }
     
+double Player::maxRunSpeed = 9;
+    
 void Player::runRight(double speed){
     this->velocityX += speed;
+    if (this->velocityX > maxRunSpeed){
+        this->velocityX = maxRunSpeed;
+    }
 }
 
 void Player::runLeft(double speed){
     this->velocityX -= speed;
+    if (this->velocityX < -maxRunSpeed){
+        this->velocityX = -maxRunSpeed;
+    }
 }
 
 void Player::moveUp(double speed){
@@ -646,6 +670,10 @@ side(side){
         case LeftSide: populateLeft(field); break;
         case RightSide: populateRight(field); break;
     }
+}
+    
+const std::vector<Util::ReferenceCount<Player> > & Team::getPlayers() const {
+    return players;
 }
 
 static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box){
@@ -768,7 +796,7 @@ void Ball::ungrab(){
 void Ball::doThrow(double velocityX, double velocityY, double velocityZ){
     ungrab();
     thrown = true;
-    timeInAir = 60;
+    timeInAir = 200;
     this->velocityX = velocityX;
     this->velocityY = velocityY;
     this->velocityZ = velocityZ;
@@ -984,6 +1012,23 @@ const Field & World::getField() const {
     
 unsigned int World::getTime() const {
     return time;
+}
+
+bool World::onTeam(const Team & team, Player & who){
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = team.getPlayers().begin(); it != team.getPlayers().end(); it++){
+        const Util::ReferenceCount<Player> & player = *it;
+        if (player == &who){
+            return true;
+        }
+    }
+    return false;
+}
+
+Util::ReferenceCount<Player> World::getTarget(Player & who){
+    if (onTeam(team1, who)){
+        return team2.getPlayers()[0];
+    }
+    return team1.getPlayers()[0];
 }
 
 }
