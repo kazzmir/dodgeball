@@ -312,7 +312,7 @@ public:
                     } else {
                         /* just walking */
 
-                        double speed = 4;
+                        double speed = player.walkingSpeed();
 
                         bool holdLeft = left.isPressed();
                         bool holdRight = right.isPressed();
@@ -424,6 +424,53 @@ public:
     }
 };
 
+static bool insideBox(double x, double y, const Box & box){
+    return x >= box.x1 &&
+           x <= box.x2 &&
+           y >= box.y1 &&
+           y <= box.y2;
+} 
+
+class AIBehavior: public Behavior {
+public:
+    static bool near(double x1, double y1, double x2, double y2){
+        return Util::distance(x1, y1, x2, y2) < 20;
+    }
+
+    /* If the player has the ball then throw it at an enemy.
+     * If the player doesn't have the ball then move towards it. Once close enough
+     * pick up the ball.
+     */
+    void act(World & world, Player & player){
+        Ball & ball = world.getBall();
+        if (player.hasBall()){
+            player.throwBall(world, ball);
+        } else {
+            if (!ball.isThrown() && insideBox(ball.getX(), ball.getY(), player.getLimit())){
+                if (near(ball.getX(), ball.getY(), player.getX(), player.getY())){
+                    player.doAction(world);
+                } else {
+                    moveTowards(player, ball.getX(), ball.getY());
+                }
+            }
+        }
+    }
+
+    void moveTowards(Player & player, double x, double y){
+        double angle = atan2(y - player.getY(), x - player.getX());
+        double speed = player.walkingSpeed();
+        player.setVelocityX(cos(angle) * speed);
+        player.setVelocityY(sin(angle) * speed);
+    }
+
+    void setControl(bool what){
+    }
+
+    bool hasControl() const {
+        return true;
+    }
+};
+
 Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior):
 x(x),
 y(y),
@@ -431,11 +478,23 @@ z(0),
 velocityX(0),
 velocityY(0),
 velocityZ(0),
-hasBall(false),
+hasBall_(false),
 facing(FaceRight),
 limit(box),
 color(color),
 behavior(behavior){
+}
+
+bool Player::hasBall() const {
+    return hasBall_;
+}
+    
+Box Player::getLimit() const {
+    return limit;
+}
+    
+double Player::walkingSpeed() const {
+    return 4;
 }
 
 void Player::act(World & world){
@@ -522,6 +581,14 @@ double Player::getY1() const {
 
 void Player::setControl(bool what){
     behavior->setControl(what);
+}
+    
+void Player::setVelocityX(double x){
+    this->velocityX = x;
+}
+
+void Player::setVelocityY(double y){
+    this->velocityY = y;
 }
     
 bool Player::hasControl() const {
@@ -625,14 +692,14 @@ void Player::throwBall(World & world, Ball & ball){
 }
 
 void Player::doAction(World & world){
-    if (hasBall){
+    if (hasBall()){
         Ball & ball = world.getBall();
         throwBall(world, ball);
-        hasBall = false;
+        hasBall_ = false;
     } else {
-        if (Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
+        if (world.getBall().getZ() < 1 && Util::distance(getX(), getY(), world.getBall().getX(), world.getBall().getY()) < 20){
             world.getBall().grab(this);
-            hasBall = true;
+            hasBall_ = true;
         }
     }
 }
@@ -701,7 +768,7 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     if (hasControl()){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(0, 0, 255));
     }
-    if (hasBall){
+    if (hasBall()){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
@@ -766,7 +833,8 @@ void Team::collisionDetection(Ball & ball){
         Util::ReferenceCount<Player> player = *it;
         Box playerBox = player->collisionBox();
         
-        if (boxCollide(player->getX1(), player->getY1(), playerBox,
+        if (fabs(player->getY() - ball.getY()) <= 3 &&
+            boxCollide(player->getX1(), player->getY1(), playerBox,
                        ball.getX1(), ball.getY1(), ballBox)){
             player->collided(ball);
             ball.collided(*player);
@@ -800,13 +868,13 @@ void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
     Graphics::Color color(Graphics::makeColor(0x00, 0xaf, 0x64));
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior())));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior())));
 
-    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new DummyBehavior())));
-    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new DummyBehavior())));
-    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new DummyBehavior())));
+    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new AIBehavior())));
+    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new AIBehavior())));
+    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new AIBehavior())));
 }
 
 void Team::enableControl(){
@@ -907,6 +975,8 @@ double Ball::getVelocityY() const {
 void Ball::collided(Player & player){
     thrown = false;
     timeInAir = 0;
+    velocityX = -velocityX;
+    velocityY = -velocityY;
 }
     
 double Ball::getX1() const {
@@ -935,6 +1005,10 @@ void Ball::doThrow(World & world, Player & player, double velocityX, double velo
 
 double Ball::getX() const {
     return x;
+}
+    
+double Ball::getZ() const {
+    return z;
 }
 
 double Ball::getY() const {
@@ -996,9 +1070,11 @@ void Ball::act(const Field & field){
     }
 
     if (x < 0 || x > field.getWidth()){
+        timeInAir = 0;
         velocityX = -velocityX;
     }
     if (y < 0 || y > field.getHeight()){
+        timeInAir = 0;
         velocityY = -velocityY;
     }
 }

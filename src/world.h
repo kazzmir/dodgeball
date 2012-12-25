@@ -144,6 +144,8 @@ public:
     
     Box collisionBox() const;
 
+    double walkingSpeed() const;
+
     void moveLeft(double speed);
     void moveRight(double speed);
     void moveUp(double speed);
@@ -154,6 +156,8 @@ public:
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
     int getFacingAngle() const;
+
+    bool hasBall() const;
 
     /* upper left x/y for collision detection */
     double getX1() const;
@@ -169,6 +173,11 @@ public:
     double getZ() const;
     void setX(double x);
     void setY(double y);
+
+    void setVelocityX(double x);
+    void setVelocityY(double y);
+
+    Box getLimit() const;
 
     void setFacing(Facing face);
     void doJump();
@@ -186,7 +195,7 @@ protected:
     static const double jumpVelocity = 15;
     static double maxRunSpeed;
 
-    bool hasBall;
+    bool hasBall_;
     Facing facing;
     Box limit;
     Graphics::Color color;
