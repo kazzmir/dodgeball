@@ -233,7 +233,7 @@ public:
     Team(Side side, const Field & field);
 
     void enableControl();
-    void cycleControl();
+    void cycleControl(World & world);
     void giveControl(const Util::ReferenceCount<Player> & who);
 
     Side getSide() const;

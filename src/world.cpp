@@ -483,7 +483,7 @@ public:
                                     (player.getLimit().x1 + player.getLimit().x2) / 2,
                                     (player.getLimit().y1 + player.getLimit().y2) / 2);
                     } else {
-                        if (wantX == 0 || wantY == 0 || Util::rnd(100) == 0){
+                        if (wantX == 0 || wantY == 0 || Util::rnd(150) == 0){
                             wantX = Util::rnd(player.getLimit().x1, player.getLimit().x2);
                             wantY = Util::rnd(player.getLimit().y1, player.getLimit().y2);
                         }
@@ -969,15 +969,24 @@ void Team::enableControl(){
     }
 }
 
-void Team::cycleControl(){
-    for (int i = 0; i < players.size(); i++){
-        if (players[i]->hasControl()){
-            int use = (i + 1) % players.size();
-            players[i]->setControl(false);
-            players[use]->setControl(true);
-            break;
+void Team::cycleControl(World & world){
+    Util::ReferenceCount<Player> use(NULL);
+    double best = 9999;
+
+    const Ball & ball = world.getBall();
+
+    /* find closest player to the ball and give him control */
+    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+        Util::ReferenceCount<Player> player = *it;
+        player->setControl(false);
+        double distance = Util::distance(player->getX(), player->getY(), ball.getX(), ball.getY());
+        if (distance < best){
+            use = player;
+            best = distance;
         }
     }
+
+    use->setControl(true);
 }
     
 void Team::giveControl(const Util::ReferenceCount<Player> & who){
@@ -1006,16 +1015,18 @@ void Team::draw(const Graphics::Bitmap & work, const Camera & camera){
 void Team::act(World & world){
     class Handler: public InputHandler<Input> {
     public:
-        Handler(Team & team):
-        team(team){
+        Handler(Team & team, World & world):
+        team(team),
+        world(world){
         }
 
         Team & team;
+        World & world;
 
         void press(const Input & out, Keyboard::unicode_t unicode){
             switch (out){
                 case Cycle: {
-                    team.cycleControl();
+                    team.cycleControl(world);
                     break;
                 }
             }
@@ -1025,7 +1036,7 @@ void Team::act(World & world){
         }
     };
 
-    Handler handler(*this);
+    Handler handler(*this, world);
     InputManager::handleEvents(map, InputSource(0, 0), handler);
 
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
