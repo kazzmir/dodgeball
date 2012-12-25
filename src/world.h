@@ -49,6 +49,8 @@ public:
     double getX() const;
     double getY() const;
 
+    void setX(double x);
+
     double getZoom() const;
 
 protected:

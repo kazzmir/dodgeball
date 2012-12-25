@@ -27,6 +27,10 @@ void Camera::zoomOut(double amount){
         zoom = 0.1;
     }
 }
+    
+void Camera::setX(double x){
+    this->x = x;
+}
 
 void Camera::normalZoom(){
     zoom = 1;
@@ -1192,6 +1196,13 @@ void World::run(){
     collisionDetection();
 
     camera.moveTowards(ball.getX(), ball.getY());
+    if (camera.getX1() < -50 && camera.getX2() < field.getWidth()){
+        camera.setX(-50 + camera.getWidth() / 2);
+    }
+
+    if (camera.getX2() > field.getWidth() + 50 && camera.getX1() > 0){
+        camera.setX(field.getWidth() + 50 - camera.getWidth() / 2);
+    }
 }
 
 void World::moveLeft(){
