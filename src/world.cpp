@@ -1666,20 +1666,71 @@ Team::Side World::findTeam(const Player & player){
     }
     return team2.getSide();
 }
-    
+
+/* low to high counter clockwise */
+static bool inRange(double low, double high, double angle){
+
+    if (low < high){
+        return angle >= low && angle <= high;
+    }
+
+    return inRange(0, high, angle) && inRange(low, Util::pi * 2, angle);
+
+    /*
+    if (low < 0){
+        if (angle < low + Util::pi * 2){
+            return false;
+        }
+    }
+
+    if (high > Util::pi * 2){
+        if (angle > high - Util::pi * 2){
+            return false;
+        }
+    }
+
+    return angle > low && angle < high;
+    */
+}
+
+static bool inFront(double angle1, double angle2){
+    return inRange(angle1 - Util::pi/4, angle1 + Util::pi/4, angle2);
+}
+
 Util::ReferenceCount<Player> World::passTarget(const std::vector<Util::ReferenceCount<Player> > & players, Player & who){
     Util::ReferenceCount<Player> best(NULL);
     double closest = 9999;
+
+    double startingAngle = Util::radians(who.getFacingAngle());
 
     for (vector<Util::ReferenceCount<Player> >::const_iterator it = players.begin(); it != players.end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
         if (player != &who){
             double distance = Util::distance(player->getX(), player->getY(), who.getX(), who.getY());
-            if (distance < closest){
+            // double angle = atan2(who.getY() - player->getY(), who.getX() - player->getX()) + Util::pi;
+            double hx = (player->getX() - who.getX()) / distance;
+            double hy = (player->getY() - who.getY()) / distance;
+            double dot = hx * cos(startingAngle) + hy * sin(startingAngle);
+            // Global::debug(0) << "Angle between " << who.getX() << ", " << who.getY() << " and " << player->getX() << ", " << player->getY() << " is " << angle << " starting angle " << startingAngle << std::endl;
+            /* cull objects behind the player */
+            if (dot > 0.3 && distance < closest){
                 closest = distance;
                 best = player;
             }
         }
+    }
+
+    if (best == NULL){
+        vector<Util::ReferenceCount<Player> > copy = players;
+        for (vector<Util::ReferenceCount<Player> >::iterator it = copy.begin(); it != copy.end(); /**/){
+            if (*it == &who){
+                it = copy.erase(it);
+            } else {
+                it++;
+            }
+        }
+
+        return copy[Util::rnd(0, copy.size() - 1)];
     }
 
     return best;
