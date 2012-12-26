@@ -207,6 +207,7 @@ public:
         Down,
         Jump,
         Catch,
+        Pass,
         /* Either throw or pick up ball */
         Action
     };
@@ -221,6 +222,7 @@ public:
         map.set(Keyboard::Key_DOWN, Down);
         map.set(Keyboard::Key_A, Action);
         map.set(Keyboard::Key_S, Catch);
+        map.set(Keyboard::Key_D, Pass);
         map.set(Keyboard::Key_SPACE, Jump);
     }
 
@@ -237,12 +239,14 @@ public:
             human(human),
             action(false),
             catching(false),
+            pass(false),
             jump(false){
             }
 
             HumanBehavior & human;
             bool action;
             bool catching;
+            bool pass;
             bool jump;
 
             void press(const Input & out, Keyboard::unicode_t unicode){
@@ -269,6 +273,10 @@ public:
                     }
                     case Action: {
                         action = true;
+                        break;
+                    }
+                    case Pass: {
+                        pass = true;
                         break;
                     }
                     case Jump: {
@@ -407,6 +415,8 @@ public:
             player.doAction(world);
         } else if (handler.catching){
             player.doCatch();
+        } else if (handler.pass && player.hasBall()){
+            player.doPass(world);
         }
     }
     
@@ -540,6 +550,49 @@ bool Player::onSideline() const {
 
 bool Player::hasBall() const {
     return hasBall_;
+}
+
+void Player::doPass(World & world){
+    if (hasBall()){
+        Util::ReferenceCount<Player> target = world.passTarget(*this);
+        double angle = atan2(target->getY() - getY(), target->getX() - getX());
+        double speed = 10;
+
+        double distance = Util::distance(getX(), target->getX(), getY(), target->getY());
+        double vx = cos(angle) * speed;
+        double vy = sin(angle) * speed;
+        double vz = 0;
+        double time = distance / speed;
+
+        if (onGround() && target->onGround()){
+            /* d_z = 1/2 at^2 + v0 * t
+             *
+             * v0 = d - 1/2 at^2
+             *
+             * a = gravity
+             *
+             * d = vt
+             * t = d/v
+             *
+             * d_z = 0 when t_z = t
+             *
+             * -1/2at^2 = v0 * t
+             *  v0 = -1/2at
+             */
+
+            /* it would be -gravity except gravity is already negated */
+            vz = gravity * time / 2;
+        }
+
+        // Global::debug(0) << "Pass z " << vz << std::endl;
+
+        world.getBall().doPass(world, *this, vx, vy, vz);
+
+        hasBall_ = false;
+        /* attempt to catch while the ball is in the air */
+        target->doCatch(time + 5);
+        world.giveControl(target);
+    }
 }
     
 Box Player::getLimit() const {
@@ -753,8 +806,8 @@ void Player::throwBall(World & world, Ball & ball){
     ball.doThrow(world, *this, cos(angle) * speed, sin(angle) * speed, vx);
 }
     
-void Player::doCatch(){
-    catching = 30;
+void Player::doCatch(int time){
+    catching = time;
 }
 
 void Player::doAction(World & world){
@@ -918,12 +971,18 @@ void Team::collisionDetection(Ball & ball){
             boxCollide(player->getX1(), player->getY1(), playerBox,
                        ball.getX1(), ball.getY1(), ballBox)){
 
+            /* TODO: handle when the ball is in the air but the player didn't catch it.
+             * The ball should just bounce off of them without them taking damage
+             * but they should show a slight getting-hit animation.
+             */
             if (player->isCatching()){
                 player->grabBall(ball);
-            } else {
+            } else if (ball.isThrown()){
                 player->collided(ball);
                 ball.collided(*player);
             }
+
+            /* cannot hit multiple players. TODO: some specials can hit multiple players */
             break;
         }
     }
@@ -1056,11 +1115,13 @@ velocityZ(0),
 timeInAir(0),
 grabbed(false),
 thrown(false),
+air(false),
 holder(NULL){
 }
 
 void Ball::grab(Player * holder){
     grabbed = true;
+    air = false;
     thrown = false;
     this->holder = holder;
 }
@@ -1080,6 +1141,7 @@ double Ball::getVelocityY() const {
 
 void Ball::collided(Player & player){
     thrown = false;
+    air = false;
     timeInAir = 0;
     velocityX = -velocityX / 2;
     velocityY = -velocityY / 2;
@@ -1102,11 +1164,27 @@ bool Ball::isThrown() const {
 void Ball::doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ){
     thrownBy = world.findTeam(player);
     ungrab();
+    air = true;
     thrown = true;
     timeInAir = 200;
     this->velocityX = velocityX;
     this->velocityY = velocityY;
     this->velocityZ = velocityZ;
+}
+
+void Ball::doPass(World & world, Player & player, double velocityX, double velocityY, double velocityZ){
+    ungrab();
+    thrownBy = world.findTeam(player);
+    timeInAir = 0;
+    thrown = false;
+    air = true;
+    this->velocityX = velocityX;
+    this->velocityY = velocityY;
+    this->velocityZ = velocityZ;
+}
+    
+bool Ball::inAir() const {
+    return air;
 }
 
 double Ball::getX() const {
@@ -1140,6 +1218,7 @@ void Ball::act(const Field & field){
         } else {
             /* When the ball hits the ground its not being thrown anymore */
             thrown = false;
+            air = false;
             timeInAir = 0;
 
             velocityZ = -velocityZ / 2;
@@ -1229,11 +1308,18 @@ team2(Team::RightSide, field){
 }
 
 void World::collisionDetection(){
-    if (ball.isThrown()){
-        if (ball.thrownBy == team1.getSide()){
-            team2.collisionDetection(ball);
+    if (ball.inAir()){
+        if (ball.isThrown()){
+            if (ball.thrownBy == team1.getSide()){
+                team2.collisionDetection(ball);
+            } else {
+                team1.collisionDetection(ball);
+            }
         } else {
             team1.collisionDetection(ball);
+            if (ball.inAir()){
+                team2.collisionDetection(ball);
+            }
         }
     }
 }
@@ -1409,6 +1495,31 @@ Team::Side World::findTeam(const Player & player){
         return team1.getSide();
     }
     return team2.getSide();
+}
+    
+Util::ReferenceCount<Player> World::passTarget(const std::vector<Util::ReferenceCount<Player> > & players, Player & who){
+    Util::ReferenceCount<Player> best(NULL);
+    double closest = 9999;
+
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = players.begin(); it != players.end(); it++){
+        const Util::ReferenceCount<Player> & player = *it;
+        if (player != &who){
+            double distance = Util::distance(player->getX(), player->getY(), who.getX(), who.getY());
+            if (distance < closest){
+                closest = distance;
+                best = player;
+            }
+        }
+    }
+
+    return best;
+}
+
+Util::ReferenceCount<Player> World::passTarget(Player & who){
+    if (onTeam(team1, who)){
+        return passTarget(team1.getPlayers(), who);
+    }
+    return passTarget(team2.getPlayers(), who);
 }
 
 }

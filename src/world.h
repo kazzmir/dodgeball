@@ -141,7 +141,8 @@ public:
     bool hasControl() const;
 
     void doAction(World & world);
-    void doCatch();
+    void doCatch(int time = 30);
+    void doPass(World & world);
     
     void collided(Ball & ball);
 
@@ -277,9 +278,13 @@ public:
 
     bool isThrown() const;
 
+    /* true if the ball is thrown (either power or pass) and hasn't touched the ground */
+    bool inAir() const;
+
     Box collisionBox() const;
 
     void doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ);
+    void doPass(World & world, Player & player, double velocityX, double velocityY, double velocityZ);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
@@ -298,6 +303,7 @@ public:
     /* true if being grabbed */
     bool grabbed;
     bool thrown;
+    bool air;
     Player * holder;
     Team::Side thrownBy;
 };
@@ -319,6 +325,9 @@ public:
     
     Util::ReferenceCount<Player> getTarget(Player & who);
     Util::ReferenceCount<Player> getTarget(const std::vector<Util::ReferenceCount<Player> > & players, Player & who);
+
+    Util::ReferenceCount<Player> passTarget(const std::vector<Util::ReferenceCount<Player> > & players, Player & who);
+    Util::ReferenceCount<Player> passTarget(Player & who);
 
     void moveLeft();
     void moveRight();
