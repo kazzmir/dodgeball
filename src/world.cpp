@@ -5,11 +5,13 @@
 #include "util/font.h"
 #include "util/sound/sound.h"
 
+#include <map>
 #include <sstream>
 #include <math.h>
 
 using std::vector;
 using std::string;
+using std::map;
 
 namespace Dodgeball{
 
@@ -1813,6 +1815,31 @@ Util::ReferenceCount<Sound> SoundManager::getSound(const Path::RelativePath & pa
     }
 
     return sounds[path];
+}
+    
+Animation::Animation(){
+}
+
+Animation::~Animation(){
+}
+
+Util::ReferenceCount<AnimationManager> AnimationManager::manager; 
+Util::ReferenceCount<AnimationManager> AnimationManager::instance(){
+    if (manager == NULL){
+        manager = Util::ReferenceCount<AnimationManager>(new AnimationManager());
+    }
+
+    return manager;
+}
+    
+AnimationManager::AnimationManager(){
+}
+    
+AnimationManager::~AnimationManager(){
+}
+    
+void AnimationManager::destroy(){
+    manager = NULL;
 }
 
 }

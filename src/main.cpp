@@ -93,6 +93,8 @@ int main(int argc, char ** argv){
         Global::debug(0) << "Shutdown" << std::endl;
     }
 
+    Dodgeball::SoundManager::destroy();
+    Dodgeball::AnimationManager::destroy();
     Global::close();
     Global::debug(0) << "Bye!" << std::endl;
 }

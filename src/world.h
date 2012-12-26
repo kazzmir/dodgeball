@@ -2,6 +2,7 @@
 #define _dodgeball_world_h
 
 #include <vector>
+#include <map>
 #include "util/input/input-map.h"
 #include "util/graphics/color.h"
 #include "util/pointer.h"
@@ -380,6 +381,26 @@ public:
     static Util::ReferenceCount<SoundManager> instance();
     static void destroy();
     Util::ReferenceCount<Sound> getSound(const Path::RelativePath & path);
+};
+
+class Animation{
+public:
+    Animation();
+    virtual ~Animation();
+};
+
+class AnimationManager{
+public:
+    virtual ~AnimationManager();
+
+    static Util::ReferenceCount<AnimationManager> instance();
+    static void destroy();
+
+protected:
+    AnimationManager();
+
+    static Util::ReferenceCount<AnimationManager> manager; 
+    std::map<std::string, std::map<std::string, Util::ReferenceCount<Animation> > > sets;
 };
 
 }
