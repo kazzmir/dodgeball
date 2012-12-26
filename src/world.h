@@ -96,6 +96,7 @@ public:
     virtual void setControl(bool what) = 0;
     virtual bool hasControl() const = 0;
     virtual void resetInput() = 0;
+    virtual void gotBall(Ball & ball) = 0;
 };
 
 class Player{

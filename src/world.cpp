@@ -263,8 +263,11 @@ public:
         down.reset();
     }
 
+    void gotBall(Ball & ball){
+    }
+
     void act(World & world, Player & player){
-        if (control && !player.isCatching()){
+        if (control){
             doInput(world, player);
         }
     }
@@ -500,9 +503,14 @@ static bool insideBox(double x, double y, const Box & box){
 class AIBehavior: public Behavior {
 public:
     AIBehavior():
+    wait(0),
     wantX(0),
     wantY(0){
     }
+
+    int wait;
+    int wantX;
+    int wantY;
 
     static bool near(double x1, double y1, double x2, double y2){
         return Util::distance(x1, y1, x2, y2) < 20;
@@ -511,12 +519,21 @@ public:
     virtual void resetInput(){
     }
 
+    void gotBall(Ball & ball){
+        wait = 20;
+    }
+
     /* If the player has the ball then throw it at an enemy.
      * If the player doesn't have the ball then move towards it. Once close enough
      * pick up the ball.
      */
     void act(World & world, Player & player){
         Ball & ball = world.getBall();
+        if (wait > 0){
+            wait -= 1;
+            return;
+        }
+
         if (player.hasBall()){
             player.doAction(world);
         } else {
@@ -528,16 +545,18 @@ public:
                         moveTowards(player, ball.getX(), ball.getY());
                     }
                 } else {
-                    if (player.onSideline()){
-                        moveTowards(player,
-                                    (player.getLimit().x1 + player.getLimit().x2) / 2,
-                                    (player.getLimit().y1 + player.getLimit().y2) / 2);
+                    double sidelineX = (player.getLimit().x1 + player.getLimit().x2) / 2;
+                    double sidelineY = (player.getLimit().y1 + player.getLimit().y2) / 2;
+                    if (player.onSideline() && Util::distance(player.getX(), player.getY(), sidelineX, sidelineY) > player.walkingSpeed()){
+                        moveTowards(player, sidelineX, sidelineY);
                     } else {
                         if (wantX == 0 || wantY == 0 || Util::rnd(150) == 0){
                             wantX = Util::rnd(player.getLimit().x1, player.getLimit().x2);
                             wantY = Util::rnd(player.getLimit().y1, player.getLimit().y2);
+                        } else if (Util::rnd(100) == 0){
+                            player.doCatch();
                         }
-                        if (Util::distance(player.getX(), player.getY(), wantX, wantY) > 3){
+                        if (Util::distance(player.getX(), player.getY(), wantX, wantY) > player.walkingSpeed()){
                             moveTowards(player, wantX, wantY);
                         }
                     }
@@ -559,9 +578,6 @@ public:
     bool hasControl() const {
         return true;
     }
-
-    int wantX;
-    int wantY;
 };
 
 Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline):
@@ -658,6 +674,9 @@ double Player::walkingSpeed() const {
 void Player::act(World & world){
     if (catching > 0){
         catching -= 1;
+        if (catching == 0){
+            behavior->resetInput();
+        }
     }
 
     if (forceMove && onGround()){
@@ -670,7 +689,9 @@ void Player::act(World & world){
             velocityY = sin(angle) * walkingSpeed();
         }
     } else {
-        behavior->act(world, *this);
+        if (catching == 0){
+            behavior->act(world, *this);
+        }
     }
 
     if (z > 0){
@@ -751,12 +772,12 @@ void Player::act(World & world){
 }
     
 void Player::collided(Ball & ball){
-    velocityX = 10;
+    velocityX = 8;
     if (ball.getVelocityX() < 0){
         velocityX *= -1;
     }
     velocityY = 0;
-    velocityZ = 8;
+    velocityZ = 9;
     z = 0.1;
 }
     
@@ -912,6 +933,7 @@ void Player::doAction(World & world){
 }
 
 void Player::grabBall(Ball & ball){
+    behavior->gotBall(ball);
     catching = 0;
     ball.grab(this);
     hasBall_ = true;
@@ -1055,7 +1077,7 @@ void Team::collisionDetection(Ball & ball){
         Util::ReferenceCount<Player> player = *it;
         Box playerBox = player->collisionBox();
         
-        if (fabs(player->getY() - ball.getY()) <= 3 &&
+        if (fabs(player->getY() - ball.getY()) <= 5 &&
             boxCollide(player->getX1(), player->getY1(), playerBox,
                        ball.getX1(), ball.getY1(), ballBox)){
 
