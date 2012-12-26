@@ -673,12 +673,6 @@ void Player::act(World & world){
         behavior->act(world, *this);
     }
 
-    /*
-    if (control){
-        doInput(world);
-    }
-    */
-
     if (z > 0){
         velocityZ -= gravity;
     } else {
@@ -757,7 +751,10 @@ void Player::act(World & world){
 }
     
 void Player::collided(Ball & ball){
-    velocityX = ball.getVelocityX();
+    velocityX = 10;
+    if (ball.getVelocityX() < 0){
+        velocityX *= -1;
+    }
     velocityY = 0;
     velocityZ = 8;
     z = 0.1;
