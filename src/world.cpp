@@ -878,6 +878,7 @@ double findAngle(double x1, double y1, double x2, double y2){
 }
 
 void Player::throwBall(World & world, Ball & ball){
+    SoundManager::instance()->getSound(Filesystem::RelativePath("throw.wav"))->play();
     Util::ReferenceCount<Player> enemy = world.getTarget(*this);
     world.giveControl(enemy);
 
