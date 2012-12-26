@@ -558,7 +558,7 @@ void Player::doPass(World & world){
         double angle = atan2(target->getY() - getY(), target->getX() - getX());
         double speed = 10;
 
-        double distance = Util::distance(getX(), target->getX(), getY(), target->getY());
+        double distance = Util::distance(getX(), getY(), target->getX(), target->getY());
         double vx = cos(angle) * speed;
         double vy = sin(angle) * speed;
         double vz = 0;
@@ -584,7 +584,12 @@ void Player::doPass(World & world){
             vz = gravity * time / 2;
         }
 
-        // Global::debug(0) << "Pass z " << vz << std::endl;
+        /*
+        Global::debug(0) << "Pass from " << getX() << ", " << getY()
+                         << " to " << target->getX() << ", " << target->getY()
+                         << " distance " << distance << " speed " << speed
+                         << " time " << time << " vx " << vx << " vy " << vy << " vz " << vz << std::endl;
+         */
 
         world.getBall().doPass(world, *this, vx, vy, vz);
 
@@ -1004,9 +1009,10 @@ void Team::populateLeft(const Field & field){
     players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
     players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
     players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
+
     players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
-    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width / 2, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width / 2, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
+    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
 }
 
 void Team::populateRight(const Field & field){
@@ -1154,7 +1160,7 @@ double Ball::getX1() const {
 
 double Ball::getY1() const {
     int size = 25;
-    return getY() - size / 2;
+    return getY() - getZ() - size / 2;
 }
     
 bool Ball::isThrown() const {
