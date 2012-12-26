@@ -259,6 +259,8 @@ public:
 
     void act(const Field & field);
 
+    int getPower() const;
+
     bool isThrown() const;
 
     /* true if the ball is thrown (either power or pass) and hasn't touched the ground */
@@ -281,6 +283,7 @@ public:
     double velocityY;
     double velocityZ;
 
+    int power;
     int timeInAir;
 
     /* true if being grabbed */

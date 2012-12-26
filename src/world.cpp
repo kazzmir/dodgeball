@@ -4,9 +4,11 @@
 #include "util/funcs.h"
 #include "util/font.h"
 
+#include <sstream>
 #include <math.h>
 
 using std::vector;
+using std::string;
 
 namespace Dodgeball{
 
@@ -1072,6 +1074,17 @@ static bool boxCollide(double x1, double y1, const Box & box1,
                       x2 + box2.x1, y2 + box2.y1, x2 + box2.x2, y2 + box2.y2);
 }
 
+template <class X>
+static string toString(const X & x){
+    std::ostringstream out;
+    out << x;
+    string result = out.str();
+    if (result.size() == 1){
+        return string("0") + result;
+    }
+    return result;
+}
+
 void Team::collisionDetection(World & world, Ball & ball){
     Box ballBox = ball.collisionBox();
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
@@ -1091,7 +1104,7 @@ void Team::collisionDetection(World & world, Ball & ball){
             } else if (ball.isThrown()){
                 player->collided(ball);
                 ball.collided(*player);
-                world.addFloatingText("03", player->getX(), player->getY(), player->getZ() + 5);
+                world.addFloatingText(toString(ball.getPower()), player->getX(), player->getY(), player->getZ() + 5);
             }
 
             /* cannot hit multiple players. TODO: some specials can hit multiple players */
@@ -1226,6 +1239,7 @@ angle(Util::rnd(360)),
 velocityX(0),
 velocityY(0),
 velocityZ(0),
+power(0),
 timeInAir(0),
 grabbed(false),
 thrown(false),
@@ -1240,9 +1254,14 @@ void Ball::grab(Player * holder){
     this->holder = holder;
 }
 
+
 void Ball::ungrab(){
     grabbed = false;
     holder = NULL;
+}
+
+int Ball::getPower() const {
+    return power;
 }
     
 double Ball::getVelocityX() const {
@@ -1276,6 +1295,7 @@ bool Ball::isThrown() const {
 }
 
 void Ball::doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ){
+    power = 3;
     thrownBy = world.findTeam(player);
     ungrab();
     air = true;
