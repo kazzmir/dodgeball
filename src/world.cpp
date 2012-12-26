@@ -198,6 +198,36 @@ Behavior::Behavior(){
 Behavior::~Behavior(){
 }
 
+struct Hold{
+    enum Last{
+        Pressed,
+        Release
+    };
+
+    Hold():
+    count(0),
+    time(0),
+    last(Release){
+    }
+
+    void reset(){
+        count = 0;
+        time = 0;
+        last = Release;
+    }
+
+    unsigned int count;
+    unsigned int time;
+    Last last;
+
+    bool isPressed() const;
+    unsigned int getCount() const;
+
+    void act();
+    void press();
+    void release();
+};
+
 class HumanBehavior: public Behavior {
 public:
     enum Input{
@@ -224,6 +254,13 @@ public:
         map.set(Keyboard::Key_S, Catch);
         map.set(Keyboard::Key_D, Pass);
         map.set(Keyboard::Key_SPACE, Jump);
+    }
+    
+    virtual void resetInput(){
+        left.reset();
+        right.reset();
+        up.reset();
+        down.reset();
     }
 
     void act(World & world, Player & player){
@@ -471,6 +508,9 @@ public:
         return Util::distance(x1, y1, x2, y2) < 20;
     }
 
+    virtual void resetInput(){
+    }
+
     /* If the player has the ball then throw it at an enemy.
      * If the player doesn't have the ball then move towards it. Once close enough
      * pick up the ball.
@@ -537,6 +577,9 @@ limit(box),
 color(color),
 sideline(sideline),
 catching(0),
+forceMove(false),
+wantX(0),
+wantY(0),
 behavior(behavior){
 }
 
@@ -609,7 +652,7 @@ bool Player::onGround() const {
 }
     
 double Player::walkingSpeed() const {
-    return 4;
+    return 4.5;
 }
 
 void Player::act(World & world){
@@ -617,7 +660,18 @@ void Player::act(World & world){
         catching -= 1;
     }
 
-    behavior->act(world, *this);
+    if (forceMove && onGround()){
+        if (Util::distance(getX(), getY(), wantX, wantY) < 3){
+            forceMove = false;
+            behavior->resetInput();
+        } else {
+            double angle = atan2(wantY - getY(), wantX - getX());
+            velocityX = cos(angle) * walkingSpeed();
+            velocityY = sin(angle) * walkingSpeed();
+        }
+    } else {
+        behavior->act(world, *this);
+    }
 
     /*
     if (control){
@@ -653,22 +707,53 @@ void Player::act(World & world){
     y += velocityY;
     z += velocityZ;
 
-    if (getX() < limit.x1){
-        setX(limit.x1);
-    }
+    if (!forceMove){
+        /* sidelined players cannot go out of their limit */
+        if (onSideline()){
+            if (getX() < limit.x1){
+                setX(limit.x1);
+            }
 
-    if (getX() > limit.x2){
-        setX(limit.x2);
-    }
+            if (getX() > limit.x2){
+                setX(limit.x2);
+            }
 
-    if (getY() < limit.y1){
-        setY(limit.y1);
-    }
+            if (getY() < limit.y1){
+                setY(limit.y1);
+            }
 
-    if (getY() > limit.y2){
-        setY(limit.y2);
-    }
+            if (getY() > limit.y2){
+                setY(limit.y2);
+            }
+        } else {
+            /* hack alert: we assume the width and height of the limit
+             * is larger than 20
+             */
+            wantX = getX();
+            wantY = getY();
+            int margin = 30;
 
+            if (getX() < limit.x1){
+                forceMove = true;
+                wantX = limit.x1 + margin;
+            }
+
+            if (getX() > limit.x2){
+                forceMove = true;
+                wantX = limit.x2 - margin;
+            }
+
+            if (getY() < limit.y1){
+                forceMove = true;
+                wantY = limit.y1 + margin;
+            }
+
+            if (getY() > limit.y2){
+                forceMove = true;
+                wantY = limit.y2 - margin;
+            }
+        }
+    }
 }
     
 void Player::collided(Ball & ball){
@@ -700,6 +785,7 @@ double Player::getY1() const {
 
 void Player::setControl(bool what){
     behavior->setControl(what);
+    behavior->resetInput();
 }
     
 void Player::setVelocityX(double x){
@@ -1043,9 +1129,10 @@ void Team::cycleControl(World & world){
     /* find closest player to the ball and give him control */
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
         Util::ReferenceCount<Player> player = *it;
+        bool control = player->hasControl();
         player->setControl(false);
         double distance = Util::distance(player->getX(), player->getY(), ball.getX(), ball.getY());
-        if (distance < best){
+        if (!control && distance < best){
             use = player;
             best = distance;
         }
@@ -1261,6 +1348,13 @@ void Ball::act(const Field & field){
     }
 
     if (x < -10 || x > field.getWidth() + 10){
+        if (x < -10){
+            x = -10;
+        }
+        if (x > field.getWidth() + 10){
+            x = field.getWidth() + 10;
+        }
+
         timeInAir = 0;
         velocityX = -velocityX / 2;
     }

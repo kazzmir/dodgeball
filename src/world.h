@@ -88,30 +88,6 @@ struct Box{
     int y2;
 };
 
-struct Hold{
-    enum Last{
-        Pressed,
-        Release
-    };
-
-    Hold():
-    count(0),
-    time(0),
-    last(Release){
-    }
-
-    unsigned int count;
-    unsigned int time;
-    Last last;
-
-    bool isPressed() const;
-    unsigned int getCount() const;
-
-    void act();
-    void press();
-    void release();
-};
-
 class Behavior{
 public:
     Behavior();
@@ -119,6 +95,7 @@ public:
     virtual void act(World & world, Player & player) = 0;
     virtual void setControl(bool what) = 0;
     virtual bool hasControl() const = 0;
+    virtual void resetInput() = 0;
 };
 
 class Player{
@@ -216,6 +193,11 @@ protected:
     bool sideline;
     /* positive if catching */
     int catching;
+
+    /* if the player goes out of bounds they will walk back in bounds */
+    bool forceMove;
+    double wantX;
+    double wantY;
 
     Util::ReferenceCount<Behavior> behavior;
 };
