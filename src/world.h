@@ -228,6 +228,8 @@ public:
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
+    bool onTeam(const Player * who) const;
+
     void act(World & world);
     const std::vector<Util::ReferenceCount<Player> > & getPlayers() const;
 
@@ -260,6 +262,7 @@ public:
     void ungrab();
 
     void act(const Field & field);
+    Player * getHolder() const;
 
     int getPower() const;
 

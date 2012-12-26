@@ -1157,11 +1157,28 @@ void Team::enableControl(){
     }
 }
 
+bool Team::onTeam(const Player * who) const {
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = getPlayers().begin(); it != getPlayers().end(); it++){
+        const Util::ReferenceCount<Player> & player = *it;
+        if (player == who){
+            return true;
+        }
+    }
+    return false;
+}
+
 void Team::cycleControl(World & world){
     Util::ReferenceCount<Player> use(NULL);
     double best = 9999;
 
     const Ball & ball = world.getBall();
+
+    if (onTeam(ball.getHolder())){
+        /* Can't cycle control if someone on the team is holding the ball,
+         * instead you have to pass it.
+         */
+        return;
+    }
 
     /* find closest player to the ball and give him control */
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
@@ -1248,6 +1265,10 @@ grabbed(false),
 thrown(false),
 air(false),
 holder(NULL){
+}
+    
+Player * Ball::getHolder() const {
+    return holder;
 }
 
 void Ball::grab(Player * holder){
@@ -1616,13 +1637,7 @@ unsigned int World::getTime() const {
 }
 
 bool World::onTeam(const Team & team, const Player & who){
-    for (vector<Util::ReferenceCount<Player> >::const_iterator it = team.getPlayers().begin(); it != team.getPlayers().end(); it++){
-        const Util::ReferenceCount<Player> & player = *it;
-        if (player == &who){
-            return true;
-        }
-    }
-    return false;
+    return team.onTeam(&who);
 }
 
 Util::ReferenceCount<Player> World::getTarget(const vector<Util::ReferenceCount<Player> > & players, Player & who){
