@@ -5,6 +5,8 @@
 #include "util/input/input-map.h"
 #include "util/graphics/color.h"
 #include "util/pointer.h"
+#include "util/file-system.h"
+#include "util/sound/sound.h"
 
 namespace Graphics{
     class Bitmap;
@@ -362,6 +364,19 @@ public:
     InputMap<Input> map;
     unsigned int time;
     std::vector<Util::ReferenceCount<FloatingText> > floatingText;
+};
+
+class SoundManager{
+protected:
+    SoundManager();
+    std::map<Path::RelativePath, Util::ReferenceCount<Sound> > sounds;
+    static Util::ReferenceCount<SoundManager> manager;
+
+public:
+    virtual ~SoundManager();
+    static Util::ReferenceCount<SoundManager> instance();
+    static void destroy();
+    Util::ReferenceCount<Sound> getSound(const Path::RelativePath & path);
 };
 
 }

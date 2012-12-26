@@ -3,6 +3,7 @@
 #include "util/input/input-manager.h"
 #include "util/funcs.h"
 #include "util/font.h"
+#include "util/sound/sound.h"
 
 #include <sstream>
 #include <math.h>
@@ -1102,6 +1103,7 @@ void Team::collisionDetection(World & world, Ball & ball){
             if (player->isCatching()){
                 player->grabBall(ball);
             } else if (ball.isThrown()){
+                SoundManager::instance()->getSound(Filesystem::RelativePath("beat1.wav"))->play();
                 player->collided(ball);
                 ball.collided(*player);
                 world.addFloatingText(toString(ball.getPower()), player->getX(), player->getY(), player->getZ() + 5);
@@ -1716,6 +1718,34 @@ void FloatingText::draw(const Graphics::Bitmap & work, const Camera & camera){
     int drawX = camera.computeX(x + cos(angle / 4) * 5);
     int drawY = camera.computeY(y - z);
     Font::getDefaultFont(40, 40).printf(drawX, drawY, Graphics::makeColor(255, 255, 255), work, text, 0);
+}
+
+SoundManager::SoundManager(){
+}
+
+SoundManager::~SoundManager(){
+}
+    
+Util::ReferenceCount<SoundManager> SoundManager::manager;
+
+void SoundManager::destroy(){
+    manager = NULL;
+}
+
+Util::ReferenceCount<SoundManager> SoundManager::instance(){
+    if (manager == NULL){
+        manager = Util::ReferenceCount<SoundManager>(new SoundManager());
+    }
+
+    return manager;
+}
+
+Util::ReferenceCount<Sound> SoundManager::getSound(const Path::RelativePath & path){
+    if (sounds.find(path) == sounds.end()){
+        sounds[path] = Util::ReferenceCount<Sound>(new Sound(Storage::instance().find(path).path()));
+    }
+
+    return sounds[path];
 }
 
 }
