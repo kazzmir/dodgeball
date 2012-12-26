@@ -2,6 +2,7 @@
 #include "util/graphics/bitmap.h"
 #include "util/input/input-manager.h"
 #include "util/funcs.h"
+#include "util/font.h"
 
 #include <math.h>
 
@@ -1071,7 +1072,7 @@ static bool boxCollide(double x1, double y1, const Box & box1,
                       x2 + box2.x1, y2 + box2.y1, x2 + box2.x2, y2 + box2.y2);
 }
 
-void Team::collisionDetection(Ball & ball){
+void Team::collisionDetection(World & world, Ball & ball){
     Box ballBox = ball.collisionBox();
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
         Util::ReferenceCount<Player> player = *it;
@@ -1090,6 +1091,7 @@ void Team::collisionDetection(Ball & ball){
             } else if (ball.isThrown()){
                 player->collided(ball);
                 ball.collided(*player);
+                world.addFloatingText("03", player->getX(), player->getY(), player->getZ() + 5);
             }
 
             /* cannot hit multiple players. TODO: some specials can hit multiple players */
@@ -1430,15 +1432,26 @@ void World::collisionDetection(){
     if (ball.inAir()){
         if (ball.isThrown()){
             if (ball.thrownBy == team1.getSide()){
-                team2.collisionDetection(ball);
+                team2.collisionDetection(*this, ball);
             } else {
-                team1.collisionDetection(ball);
+                team1.collisionDetection(*this, ball);
             }
         } else {
-            team1.collisionDetection(ball);
+            team1.collisionDetection(*this, ball);
             if (ball.inAir()){
-                team2.collisionDetection(ball);
+                team2.collisionDetection(*this, ball);
             }
+        }
+    }
+}
+
+static void eraseDead(vector<Util::ReferenceCount<FloatingText> > & stuff){
+    for (vector<Util::ReferenceCount<FloatingText> >::iterator it = stuff.begin(); it != stuff.end(); /**/){
+        Util::ReferenceCount<FloatingText> text = *it;
+        if (text->alive()){
+            it++;
+        } else {
+            it = stuff.erase(it);
         }
     }
 }
@@ -1498,6 +1511,13 @@ void World::run(){
 
     collisionDetection();
 
+    for (vector<Util::ReferenceCount<FloatingText> >::iterator it = floatingText.begin(); it != floatingText.end(); it++){
+        Util::ReferenceCount<FloatingText> text = *it;
+        text->act();
+    }
+
+    eraseDead(floatingText);
+
     camera.moveTowards(ball.getX(), ball.getY());
     int xbounds = 50;
     int ybounds = 30;
@@ -1541,6 +1561,13 @@ void World::drawPlayers(const Graphics::Bitmap & work){
     team2.draw(work, camera);
 }
 
+void World::drawText(const Graphics::Bitmap & work, const Camera & camera){
+    for (vector<Util::ReferenceCount<FloatingText> >::iterator it = floatingText.begin(); it != floatingText.end(); it++){
+        Util::ReferenceCount<FloatingText> text = *it;
+        text->draw(work, camera);
+    }
+}
+
 void World::draw(const Graphics::Bitmap & screen){
     Graphics::StretchedBitmap work(camera.getWidth(), camera.getHeight(), screen);
     work.start();
@@ -1548,6 +1575,7 @@ void World::draw(const Graphics::Bitmap & screen){
     field.draw(work, camera);
     drawPlayers(work);
     ball.draw(work, camera);
+    drawText(work, camera);
 
     work.finish();
 }
@@ -1639,6 +1667,35 @@ Util::ReferenceCount<Player> World::passTarget(Player & who){
         return passTarget(team1.getPlayers(), who);
     }
     return passTarget(team2.getPlayers(), who);
+}
+    
+void World::addFloatingText(const std::string & text, double x, double y, double z){
+    floatingText.push_back(Util::ReferenceCount<FloatingText>(new FloatingText(text, x, y, z)));
+}
+
+FloatingText::FloatingText(const std::string & text, double x, double y, double z):
+x(x),
+y(y),
+z(z),
+life(100),
+angle(0),
+text(text){
+}
+    
+bool FloatingText::alive(){
+    return life > 0;
+}
+
+void FloatingText::act(){
+    life -= 1;
+    angle += 1;
+    z += 1;
+}
+
+void FloatingText::draw(const Graphics::Bitmap & work, const Camera & camera){
+    int drawX = camera.computeX(x + cos(angle / 4) * 5);
+    int drawY = camera.computeY(y - z);
+    Font::getDefaultFont(40, 40).printf(drawX, drawY, Graphics::makeColor(255, 255, 255), work, text, 0);
 }
 
 }

@@ -222,7 +222,7 @@ public:
 
     Side getSide() const;
             
-    void collisionDetection(Ball & ball);
+    void collisionDetection(World & world, Ball & ball);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
@@ -291,6 +291,21 @@ public:
     Team::Side thrownBy;
 };
 
+class FloatingText{
+public:
+    FloatingText(const std::string & text, double x, double y, double z);
+
+    void act();
+    void draw(const Graphics::Bitmap & work, const Camera & camera);
+    bool alive();
+
+protected:
+    double x, y, z;
+    int life;
+    int angle;
+    const std::string text;
+};
+
 class World{
 public:
     enum Input{
@@ -317,8 +332,11 @@ public:
     void moveUp();
     void moveDown();
 
+    void addFloatingText(const std::string & text, double x, double y, double z);
+
     void drawPlayers(const Graphics::Bitmap & work);
     void draw(const Graphics::Bitmap & screen);
+    void drawText(const Graphics::Bitmap & work, const Camera & camera);
 
     void collisionDetection();
     
@@ -340,6 +358,7 @@ public:
     Team team2;
     InputMap<Input> map;
     unsigned int time;
+    std::vector<Util::ReferenceCount<FloatingText> > floatingText;
 };
 
 }

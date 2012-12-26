@@ -2,6 +2,7 @@
 #include "util/init.h"
 #include "util/events.h"
 #include "util/pointer.h"
+#include "util/font.h"
 #include "util/input/input-manager.h"
 #include "util/debug.h"
 #include "util/exceptions/exception.h"
@@ -84,6 +85,7 @@ static void run(){
 int main(int argc, char ** argv){
     Global::init(Global::WINDOWED);
     Util::Parameter<Graphics::Bitmap*> use(Graphics::screenParameter, Graphics::getScreenBuffer());
+    Util::Parameter<Util::ReferenceCount<Path::RelativePath> > font(Font::defaultFont, Util::ReferenceCount<Path::RelativePath>(new Path::RelativePath("arial.ttf")));
     InputManager input;
     try{
         run();
