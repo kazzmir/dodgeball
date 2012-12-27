@@ -622,6 +622,7 @@ catching(0),
 forceMove(false),
 wantX(0),
 wantY(0),
+falling(0),
 behavior(behavior),
 animation(getAnimation("idle")){
 }
@@ -756,7 +757,7 @@ void Player::act(World & world){
             }
         }
     } else {
-        if (catching == 0){
+        if (catching == 0 && falling == 0 && *animation != *getAnimation("rise")){
             behavior->act(world, *this);
         }
     }
@@ -766,6 +767,13 @@ void Player::act(World & world){
     } else {
         z = 0;
         velocityZ = 0;
+
+        if (falling > 0){
+            falling -= 1;
+            if (falling == 0){
+                setRiseAnimation();
+            }
+        }
 
         const Field & field = world.getField();
         if (velocityX > field.getFriction()){
@@ -784,7 +792,7 @@ void Player::act(World & world){
             velocityY = 0;
         }
         
-        if (velocityX == 0 && velocityY == 0 && !backToIdle && !isCatching()){
+        if (velocityX == 0 && velocityY == 0 && falling == 0 && !backToIdle && !isCatching()){
             setIdleAnimation();
         }
     }
@@ -795,7 +803,7 @@ void Player::act(World & world){
     double oldZ = z;
     z += velocityZ;
 
-    if (oldZ > 0 && z <= 0){
+    if (falling == 0 && oldZ > 0 && z <= 0){
         setIdleAnimation();
     }
 
@@ -853,8 +861,13 @@ void Player::setPainAnimation(){
     backToIdle = true;
 }
 
+void Player::setFallAnimation(){
+    animation = getAnimation("fall");
+}
+
 void Player::collided(Ball & ball){
-    setPainAnimation();
+    setFallAnimation();
+    falling = 40;
     velocityX = 8;
     if (ball.getVelocityX() < 0){
         velocityX *= -1;
@@ -865,7 +878,7 @@ void Player::collided(Ball & ball){
 }
     
 double Player::getWidth() const {
-    return 30;
+    return 60;
 }
 
 double Player::getHeight() const {
@@ -1063,6 +1076,11 @@ void Player::setWalkingAnimation(){
     
 void Player::setIdleAnimation(){
     animation = getAnimation("idle");
+}
+    
+void Player::setRiseAnimation(){
+    animation = getAnimation("rise");
+    backToIdle = true;
 }
 
 void Player::setRunAnimation(){

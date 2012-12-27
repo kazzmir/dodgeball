@@ -238,8 +238,10 @@ public:
     void setThrowAnimation();
     void setGrabAnimation();
     void setPainAnimation();
+    void setFallAnimation();
     void setCatchAnimation();
     void setIdleAnimation();
+    void setRiseAnimation();
 
 protected:
     void throwBall(World & world, Ball & ball);
@@ -271,6 +273,8 @@ protected:
     bool forceMove;
     double wantX;
     double wantY;
+
+    int falling;
 
     Util::ReferenceCount<Behavior> behavior;
     Util::ReferenceCount<Animation> animation;
