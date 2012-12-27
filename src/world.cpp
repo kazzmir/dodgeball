@@ -586,7 +586,7 @@ public:
                     if (player.onSideline() && Util::distance(player.getX(), player.getY(), sidelineX, sidelineY) > player.walkingSpeed()){
                         moveTowards(player, sidelineX, sidelineY);
                     } else {
-                        if (wantX == 0 || wantY == 0 || Util::rnd(180) == 0){
+                        if (wantX == 0 || wantY == 0 || Util::rnd(200) == 0){
                             wantX = Util::rnd(player.getLimit().x1, player.getLimit().x2);
                             wantY = Util::rnd(player.getLimit().y1, player.getLimit().y2);
                             want = true;
@@ -620,6 +620,22 @@ public:
     }
 };
 
+static string randomName(){
+    switch (Util::rnd(10)){
+        case 0: return "Bob";
+        case 1: return "Randy";
+        case 2: return "Sam";
+        case 3: return "Mike";
+        case 4: return "Tom";
+        case 5: return "Alex";
+        case 6: return "Bill";
+        case 7: return "Greg";
+        case 8: return "Chris";
+        case 9: return "Derrick";
+    }
+    return "Guy";
+}
+
 Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline, double health):
 x(x),
 y(y),
@@ -641,6 +657,11 @@ wantY(0),
 falling(0),
 behavior(behavior),
 animation(getAnimation("idle")){
+    name = randomName();
+}
+
+const string & Player::getName() const {
+    return name;
 }
     
 bool Player::isDying() const {
@@ -1229,6 +1250,8 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     */
 
     animation->draw(work, (int) camera.computeX(x), (int) camera.computeY(y - z), isFacingRight());
+    const Font & font = Font::getDefaultFont(24, 24);
+    font.printf((int) camera.computeX(x - font.textLength(getName().c_str()) / 2), (int) camera.computeY(y - z), Graphics::makeColor(255, 255, 255), work, getName(), 0);
 }
 
 double Player::getX() const {
@@ -1855,18 +1878,6 @@ void World::moveDown(){
     camera.moveDown(5);
 }
 
-void World::drawPlayers(const Graphics::Bitmap & work){
-    team1.draw(work, camera);
-    team2.draw(work, camera);
-}
-
-void World::drawText(const Graphics::Bitmap & work, const Camera & camera){
-    for (vector<Util::ReferenceCount<FloatingText> >::iterator it = floatingText.begin(); it != floatingText.end(); it++){
-        Util::ReferenceCount<FloatingText> text = *it;
-        text->draw(work, camera);
-    }
-}
-
 vector<Drawable*> World::getDrawables(){
     vector<Drawable*> out;
 
@@ -1894,6 +1905,47 @@ vector<Drawable*> World::getDrawables(){
     return out;
 }
 
+void World::drawOverlay(const Graphics::Bitmap & work){
+    const Font & font = Font::getDefaultFont(24, 24);
+    work.translucent(0, 0, 0, 128).rectangleFill(0, 0, work.getWidth(), (font.getHeight() + 2) * 3 + 10, Graphics::makeColor(0, 0, 0));
+
+    int x = 5;
+    int y = 2;
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = team1.getPlayers().begin(); it != team1.getPlayers().end(); it++){
+        const Util::ReferenceCount<Player> & player = *it;
+        if (!player->onSideline()){
+            font.printf(x, y, Graphics::makeColor(255, 255, 255), work, player->getName(), 0);
+
+            int healthX = x + font.textLength("aaaaaaa");
+            int width = 3;
+            for (int i = 0; i < player->getHealth() / 10; i++){
+                work.rectangleFill(healthX, y + 1, healthX + width, y + font.getHeight() - 1, Graphics::makeColor(255, 255, 255));
+                healthX += width * 3;
+            }
+
+            y += font.getHeight() + 2;
+        }
+    }
+
+    x = work.getWidth() / 2;
+    y = 2;
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = team2.getPlayers().begin(); it != team2.getPlayers().end(); it++){
+        const Util::ReferenceCount<Player> & player = *it;
+        if (!player->onSideline()){
+            font.printf(x, y, Graphics::makeColor(255, 255, 255), work, player->getName(), 0);
+            int healthX = x + font.textLength("aaaaaaa");
+            int width = 3;
+            for (int i = 0; i < player->getHealth() / 10; i++){
+                work.rectangleFill(healthX, y + 1, healthX + width, y + font.getHeight() - 1, Graphics::makeColor(255, 255, 255));
+                healthX += width * 3;
+            }
+
+            y += font.getHeight() + 2;
+        }
+    }
+
+}
+
 void World::draw(const Graphics::Bitmap & screen){
     Graphics::StretchedBitmap work(camera.getWidth(), camera.getHeight(), screen);
     work.start();
@@ -1905,11 +1957,7 @@ void World::draw(const Graphics::Bitmap & screen){
         what->draw(work, camera);
     }
 
-    /*
-    drawPlayers(work);
-    ball.draw(work, camera);
-    drawText(work, camera);
-    */
+    drawOverlay(work);
 
     work.finish();
 }

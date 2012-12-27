@@ -188,6 +188,8 @@ public:
     void doAction(World & world);
     void doCatch(int time = 30);
     void doPass(World & world);
+
+    const std::string & getName() const;
     
     void collided(Ball & ball);
 
@@ -273,6 +275,8 @@ protected:
     double velocityZ;
 
     double health;
+
+    std::string name;
 
     static const double jumpVelocity = 15;
     static double maxRunSpeed;
@@ -447,9 +451,9 @@ public:
 
     void addFloatingText(const std::string & text, double x, double y, double z);
 
-    void drawPlayers(const Graphics::Bitmap & work);
     void draw(const Graphics::Bitmap & screen);
-    void drawText(const Graphics::Bitmap & work, const Camera & camera);
+
+    void drawOverlay(const Graphics::Bitmap & work);
 
     void collisionDetection();
     
