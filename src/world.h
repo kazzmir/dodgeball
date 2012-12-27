@@ -192,6 +192,7 @@ public:
     void collided(Ball & ball);
 
     bool isDying() const;
+    bool isFalling() const;
 
     bool onGround() const;
 

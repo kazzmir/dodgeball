@@ -384,7 +384,7 @@ public:
         Handler handler(*this);
         InputManager::handleEvents(map, InputSource(0, 0), handler);
 
-        if (player.getZ() <= 0){
+        if (!player.isFalling() && player.getZ() <= 0){
             if (handler.jump){
                 runningLeft = false;
                 runningRight = false;
@@ -646,6 +646,10 @@ animation(getAnimation("idle")){
 bool Player::isDying() const {
     return getHealth() < 0 && falling > 0;
 }
+    
+bool Player::isFalling() const {
+    return falling > 0;
+}
 
 double Player::getHealth() const {
     return health;
@@ -833,7 +837,7 @@ void Player::act(World & world){
         setIdleAnimation();
     }
 
-    if (!forceMove){
+    if (!forceMove && falling == 0){
         /* sidelined players cannot go out of their limit */
         if (onSideline()){
             if (getX() < limit.x1){
@@ -889,10 +893,12 @@ void Player::setPainAnimation(){
 
 void Player::setFallAnimation(){
     animation = getAnimation("fall");
+    backToIdle = false;
 }
 
 void Player::collided(Ball & ball){
     setFallAnimation();
+    catching = 0;
     falling = 40;
     velocityX = 8;
     if (!onSideline()){
