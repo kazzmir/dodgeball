@@ -154,7 +154,19 @@ public:
     virtual void gotBall(Ball & ball) = 0;
 };
 
-class Player{
+class Drawable{
+public:
+    Drawable();
+    virtual ~Drawable();
+
+    virtual double getX() const = 0;
+    virtual double getY() const = 0;
+    virtual void draw(const Graphics::Bitmap & work, const Camera & camera) = 0;
+
+    static bool order(Drawable * a, Drawable * b);
+};
+
+class Player: public Drawable {
 public:
     enum Facing{
         FaceLeft,
@@ -317,7 +329,7 @@ protected:
     InputMap<Input> map;
 };
 
-class Ball{
+class Ball: public Drawable {
 public:
     Ball(double x, double y);
 
@@ -374,9 +386,12 @@ public:
     Team::Side thrownBy;
 };
 
-class FloatingText{
+class FloatingText: public Drawable {
 public:
     FloatingText(const std::string & text, double x, double y, double z);
+
+    double getX() const;
+    double getY() const;
 
     void act();
     void draw(const Graphics::Bitmap & work, const Camera & camera);
@@ -428,6 +443,8 @@ public:
     Team::Side findTeam(const Player & player);
 
     unsigned int getTime() const;
+
+    std::vector<Drawable*> getDrawables();
 
     bool onTeam(const Team & team, const Player & who);
 

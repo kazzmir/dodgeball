@@ -205,6 +205,16 @@ Behavior::Behavior(){
 
 Behavior::~Behavior(){
 }
+    
+Drawable::Drawable(){
+}
+    
+bool Drawable::order(Drawable * a, Drawable * b){
+    return a->getY() < b->getY();
+}
+
+Drawable::~Drawable(){
+}
 
 struct Hold{
     enum Last{
@@ -884,7 +894,7 @@ double Player::getWidth() const {
 double Player::getHeight() const {
     return 130;
 }
-    
+
 void Player::setFacing(Facing face){
     this->facing = face;
 }
@@ -1538,7 +1548,8 @@ double Ball::getY() const {
 void Ball::act(const Field & field){
     if (grabbed && holder != NULL){
         this->x = holder->getX();
-        this->y = holder->getY();
+        /* add 0.1 to make sure the ball is drawn in front of the player */
+        this->y = holder->getY() + 0.1;
         this->z = holder->getHandPosition();
     } else {
         x += velocityX;
@@ -1793,14 +1804,49 @@ void World::drawText(const Graphics::Bitmap & work, const Camera & camera){
     }
 }
 
+vector<Drawable*> World::getDrawables(){
+    vector<Drawable*> out;
+
+    out.push_back(&ball);
+
+    vector<Util::ReferenceCount<Player> > players = team1.getPlayers();
+    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+        Util::ReferenceCount<Player> player = *it;
+        out.push_back(player.raw());
+    }
+
+    players = team2.getPlayers();
+    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
+        Util::ReferenceCount<Player> player = *it;
+        out.push_back(player.raw());
+    }
+
+    for (vector<Util::ReferenceCount<FloatingText> >::iterator it = floatingText.begin(); it != floatingText.end(); it++){
+        Util::ReferenceCount<FloatingText> text = *it;
+        out.push_back(text.raw());
+    }
+
+    sort(out.begin(), out.end(), Drawable::order);
+
+    return out;
+}
+
 void World::draw(const Graphics::Bitmap & screen){
     Graphics::StretchedBitmap work(camera.getWidth(), camera.getHeight(), screen);
     work.start();
-
     field.draw(work, camera);
+
+    vector<Drawable*> draws = getDrawables();
+    for (vector<Drawable*>::iterator it = draws.begin(); it != draws.end(); it++){
+        Drawable * what = *it;
+        what->draw(work, camera);
+    }
+
+    /*
     drawPlayers(work);
     ball.draw(work, camera);
     drawText(work, camera);
+    */
 
     work.finish();
 }
@@ -1964,6 +2010,14 @@ angle(0),
 text(text){
 }
     
+double FloatingText::getX() const {
+    return x;
+}
+
+double FloatingText::getY() const {
+    return y;
+}
+
 bool FloatingText::alive(){
     return life > 0;
 }
