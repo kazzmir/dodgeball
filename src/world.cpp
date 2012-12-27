@@ -1251,8 +1251,11 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     */
 
     animation->draw(work, (int) camera.computeX(x), (int) camera.computeY(y - z), isFacingRight());
-    const Font & font = Font::getDefaultFont(24, 24);
-    font.printf((int) camera.computeX(x - font.textLength(getName().c_str()) / 2), (int) camera.computeY(y - z), Graphics::makeColor(255, 255, 255), work, getName(), 0);
+
+    if (!onSideline()){
+        const Font & font = Font::getDefaultFont(24, 24);
+        font.printf((int) camera.computeX(x - font.textLength(getName().c_str()) / 2), (int) camera.computeY(y - z), Graphics::makeColor(255, 255, 255), work, getName(), 0);
+    }
 }
 
 double Player::getX() const {
