@@ -9,9 +9,15 @@
   (anim 
     (name "walk") 
     (basedir walk) 
-    (delay 14) 
+    (delay 9) 
     (frame 1.png) 
     (frame 2.png)) 
+  (anim 
+    (name "run") 
+    (basedir walk) 
+    (delay 4) 
+    (frame 1.png) 
+    (frame 2.png))
   (anim 
     (name "idle") 
     (basedir idle) 

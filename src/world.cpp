@@ -727,6 +727,10 @@ void Player::act(World & world){
         } else {
             velocityY = 0;
         }
+        
+        if (velocityX == 0 && velocityY == 0){
+            animation = AnimationManager::instance()->getAnimation("alex", "idle")->clone();
+        }
     }
 
     x += velocityX;
@@ -959,11 +963,30 @@ void Player::grabBall(Ball & ball){
 }
 
 void Player::moveLeft(double speed){
+    setWalkingAnimation();
     this->velocityX = -speed;
     // this->x -= speed;
 }
 
+void Player::setWalkingAnimation(){
+    Util::ReferenceCount<Animation> walk = AnimationManager::instance()->getAnimation("alex", "walk");
+    if (*animation != *walk){
+        animation = walk->clone();
+        animation->setLoop(true);
+    }
+}
+
+void Player::setRunAnimation(){
+    Util::ReferenceCount<Animation> run = AnimationManager::instance()->getAnimation("alex", "run");
+    if (*animation != *run){
+        animation = run->clone();
+        animation->setLoop(true);
+    }
+}
+
+
 void Player::moveRight(double speed){
+    setWalkingAnimation();
     this->velocityX = speed;
     // this->x += speed;
 }
@@ -971,6 +994,7 @@ void Player::moveRight(double speed){
 double Player::maxRunSpeed = 9;
     
 void Player::runRight(double speed){
+    setRunAnimation();
     this->velocityX += speed;
     if (this->velocityX > maxRunSpeed){
         this->velocityX = maxRunSpeed;
@@ -978,6 +1002,7 @@ void Player::runRight(double speed){
 }
 
 void Player::runLeft(double speed){
+    setRunAnimation();
     this->velocityX -= speed;
     if (this->velocityX < -maxRunSpeed){
         this->velocityX = -maxRunSpeed;
@@ -990,6 +1015,7 @@ void Player::moveUp(double speed){
 }
 
 void Player::moveDown(double speed){
+    setWalkingAnimation();
     this->velocityY = speed;
     // this->y += speed;
 }
@@ -1907,11 +1933,12 @@ public:
     int x, y;
 };
     
-Animation::Animation(const Filesystem::AbsolutePath & directory, const Token * token):
+Animation::Animation(const Filesystem::AbsolutePath & directory, const Token * token, unsigned int id):
 x(0), y(0),
 delay(0),
 counter(0),
-loop(false){
+loop(false),
+id(id){
     TokenView view = token->view();
     while (view.hasMore()){
         const Token * next;
@@ -1941,9 +1968,18 @@ Animation & Animation::operator=(const Animation & animation){
     return *this;
 }
 
+bool Animation::operator==(const Animation & who) const {
+    return id == who.id;
+}
+    
+bool Animation::operator!=(const Animation & who) const {
+    return !(*this == who);
+}
+
 void Animation::copy(const Animation & animation){
     x = animation.x;
     y = animation.y;
+    id = animation.id;
     frame = animation.frame;
     delay = animation.delay;
     loop = animation.loop;
@@ -2026,13 +2062,14 @@ Util::ReferenceCount<AnimationManager> AnimationManager::instance(){
     return manager;
 }
     
-AnimationManager::AnimationManager(){
+AnimationManager::AnimationManager():
+id(0){
 }
     
 AnimationManager::~AnimationManager(){
 }
 
-static map<string, Util::ReferenceCount<Animation> > loadAnimations(const std::string & path){
+map<string, Util::ReferenceCount<Animation> > AnimationManager::loadAnimations(const std::string & path){
     TokenReader reader;
     Filesystem::AbsolutePath directory = Storage::instance().find(Filesystem::RelativePath(path));
     Token * token = reader.readTokenFromFile(directory.join(Filesystem::RelativePath(path + ".txt")).path());
@@ -2044,7 +2081,8 @@ static map<string, Util::ReferenceCount<Animation> > loadAnimations(const std::s
         const Token * animationToken = *it;
         string name;
         if (animationToken->match("_/name", name)){
-            animations[name] = new Animation(directory, animationToken);
+            animations[name] = new Animation(directory, animationToken, id);
+            id += 1;
         }
     }
 

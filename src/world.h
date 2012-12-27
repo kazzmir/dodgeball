@@ -31,10 +31,13 @@ public:
 
 class Animation{
 public:
-    Animation(const Filesystem::AbsolutePath & directory, const Token * token);
+    Animation(const Filesystem::AbsolutePath & directory, const Token * token, unsigned int id);
     Animation(const Animation & copy);
     Animation & operator=(const Animation & copy);
     virtual ~Animation();
+
+    bool operator==(const Animation & who) const;
+    bool operator!=(const Animation & who) const;
 
     void setBaseDirectory(const Filesystem::AbsolutePath & path);
     const Filesystem::AbsolutePath & getBaseDirectory() const;
@@ -62,6 +65,8 @@ protected:
     int delay;
     int counter;
     bool loop;
+    /* globally unique id keeps track of animations for equality */
+    unsigned int id;
 };
 
 class Camera{
@@ -223,6 +228,8 @@ public:
     void doJump();
 
 protected:
+    void setWalkingAnimation();
+    void setRunAnimation();
     void throwBall(World & world, Ball & ball);
 
     double x;
@@ -442,9 +449,11 @@ public:
 
 protected:
     AnimationManager();
+    std::map<std::string, Util::ReferenceCount<Animation> > loadAnimations(const std::string & path);
 
     static Util::ReferenceCount<AnimationManager> manager; 
     std::map<std::string, std::map<std::string, Util::ReferenceCount<Animation> > > sets;
+    unsigned int id;
 };
 
 }
