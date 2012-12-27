@@ -460,6 +460,15 @@ public:
                     }
                 }
             }
+        } else {
+            /* Player can turn in the air */
+            if (left.isPressed()){
+                player.setFacing(Player::FaceDownLeft);
+            }
+
+            if (right.isPressed()){
+                player.setFacing(Player::FaceRight);
+            }
         }
 
         if (handler.action){
@@ -565,7 +574,7 @@ public:
                     if (player.onSideline() && Util::distance(player.getX(), player.getY(), sidelineX, sidelineY) > player.walkingSpeed()){
                         moveTowards(player, sidelineX, sidelineY);
                     } else {
-                        if (wantX == 0 || wantY == 0 || Util::rnd(150) == 0){
+                        if (wantX == 0 || wantY == 0 || Util::rnd(180) == 0){
                             wantX = Util::rnd(player.getLimit().x1, player.getLimit().x2);
                             wantY = Util::rnd(player.getLimit().y1, player.getLimit().y2);
                         } else if (Util::rnd(100) == 0){
@@ -706,6 +715,11 @@ double Player::walkingSpeed() const {
     return 4.5;
 }
 
+void Player::dropBall(Ball & ball){
+    hasBall_ = false;
+    ball.ungrab();
+}
+
 void Player::act(World & world){
     animation->act();
 
@@ -723,6 +737,10 @@ void Player::act(World & world){
     }
 
     if (forceMove && onGround()){
+        if (hasBall()){
+            dropBall(world.getBall());
+        }
+
         if (Util::distance(getX(), getY(), wantX, wantY) < 3){
             forceMove = false;
             behavior->resetInput();
@@ -730,6 +748,12 @@ void Player::act(World & world){
             double angle = atan2(wantY - getY(), wantX - getX());
             velocityX = cos(angle) * walkingSpeed();
             velocityY = sin(angle) * walkingSpeed();
+            setWalkingAnimation();
+            if (wantX < getX()){
+                setFacing(FaceLeft);
+            } else {
+                setFacing(FaceRight);
+            }
         }
     } else {
         if (catching == 0){
@@ -1415,7 +1439,6 @@ void Ball::grab(Player * holder){
     this->holder = holder;
 }
 
-
 void Ball::ungrab(){
     grabbed = false;
     holder = NULL;
@@ -1779,16 +1802,28 @@ bool World::onTeam(const Team & team, const Player & who){
 
 Util::ReferenceCount<Player> World::getTarget(const vector<Util::ReferenceCount<Player> > & players, Player & who){
     Util::ReferenceCount<Player> best(NULL);
-    double bestAngle = 999;
+    double bestDot = -999;
 
+    double startingAngle = Util::radians(who.getFacingAngle());
     for (vector<Util::ReferenceCount<Player> >::const_iterator it = players.begin(); it != players.end(); it++){
         const Util::ReferenceCount<Player> & player = *it;
         /* can't target sidelined players */
         if (!player->onSideline()){
             /* choose the player closest to angle 0, directly horizontal */
+
+            /*
             double angle = atan2(player->getY() - who.getY(), player->getX() - who.getX());
             if (fabs(angle) < bestAngle){
                 bestAngle = angle;
+                best = player;
+            }
+            */
+            double distance = Util::distance(player->getX(), player->getY(), who.getX(), who.getY());
+            double hx = (player->getX() - who.getX()) / distance;
+            double hy = (player->getY() - who.getY()) / distance;
+            double dot = hx * cos(startingAngle) + hy * sin(startingAngle);
+            if (dot > bestDot){
+                bestDot = dot;
                 best = player;
             }
         }

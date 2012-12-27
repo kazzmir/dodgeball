@@ -198,6 +198,8 @@ public:
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
 
+    void dropBall(Ball & ball);
+
     int getFacingAngle() const;
 
     bool hasBall() const;
