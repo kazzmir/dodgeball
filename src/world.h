@@ -39,6 +39,8 @@ public:
     bool operator==(const Animation & who) const;
     bool operator!=(const Animation & who) const;
 
+    bool isDone() const;
+
     void setBaseDirectory(const Filesystem::AbsolutePath & path);
     const Filesystem::AbsolutePath & getBaseDirectory() const;
 
@@ -190,6 +192,8 @@ public:
     void runRight(double speed);
     void runLeft(double speed);
 
+    void faceTowards(double x, double y);
+
     void grabBall(Ball & ball);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
@@ -227,10 +231,17 @@ public:
     void setFacing(Facing face);
     void doJump();
 
-protected:
     void setWalkingAnimation();
     void setRunAnimation();
+    void setThrowAnimation();
+    void setGrabAnimation();
+    void setPainAnimation();
+    void setCatchAnimation();
+    void setIdleAnimation();
+
+protected:
     void throwBall(World & world, Ball & ball);
+    Util::ReferenceCount<Animation> getAnimation(const std::string & what);
 
     double x;
     double y;
@@ -247,6 +258,8 @@ protected:
     Facing facing;
     Box limit;
     Graphics::Color color;
+    /* go back to the idle animation if the current one is done */
+    bool backToIdle;
     /* true if on the sideline */
     bool sideline;
     /* positive if catching */

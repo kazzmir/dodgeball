@@ -277,6 +277,9 @@ public:
     void act(World & world, Player & player){
         if (control){
             doInput(world, player);
+        } else {
+            Ball & ball = world.getBall();
+            player.faceTowards(ball.getX(), ball.getY());
         }
     }
 
@@ -537,7 +540,11 @@ public:
      */
     void act(World & world, Player & player){
         Ball & ball = world.getBall();
+
+        player.faceTowards(ball.getX(), ball.getY());
+
         if (wait > 0){
+            player.setIdleAnimation();
             wait -= 1;
             return;
         }
@@ -578,6 +585,7 @@ public:
         double speed = player.walkingSpeed();
         player.setVelocityX(cos(angle) * speed);
         player.setVelocityY(sin(angle) * speed);
+        player.setWalkingAnimation();
     }
 
     void setControl(bool what){
@@ -599,13 +607,14 @@ hasBall_(false),
 facing(FaceRight),
 limit(box),
 color(color),
+backToIdle(false),
 sideline(sideline),
 catching(0),
 forceMove(false),
 wantX(0),
 wantY(0),
 behavior(behavior),
-animation(AnimationManager::instance()->getAnimation("alex", "idle")->clone()){
+animation(getAnimation("idle")){
 }
 
 bool Player::isCatching() const {
@@ -618,6 +627,23 @@ bool Player::onSideline() const {
 
 bool Player::hasBall() const {
     return hasBall_;
+}
+    
+void Player::faceTowards(double x, double y){
+    /*
+    double angle = Util::degrees(atan2(y - getY(), x - getX()));
+    if (angle < 90 || angle > 360 - 90){
+        setFacing(FaceRight);
+    } else {
+        setFacing(FaceLeft);
+    }
+    */
+
+    if (x > getX()){
+        setFacing(FaceRight);
+    } else {
+        setFacing(FaceLeft);
+    }
 }
 
 void Player::doPass(World & world){
@@ -683,10 +709,16 @@ double Player::walkingSpeed() const {
 void Player::act(World & world){
     animation->act();
 
+    if (backToIdle && animation->isDone()){
+        backToIdle = false;
+        setIdleAnimation();
+    }
+
     if (catching > 0){
         catching -= 1;
         if (catching == 0){
             behavior->resetInput();
+            setIdleAnimation();
         }
     }
 
@@ -728,8 +760,8 @@ void Player::act(World & world){
             velocityY = 0;
         }
         
-        if (velocityX == 0 && velocityY == 0){
-            animation = AnimationManager::instance()->getAnimation("alex", "idle")->clone();
+        if (velocityX == 0 && velocityY == 0 && !backToIdle && !isCatching()){
+            setIdleAnimation();
         }
     }
 
@@ -740,7 +772,7 @@ void Player::act(World & world){
     z += velocityZ;
 
     if (oldZ > 0 && z <= 0){
-        animation = AnimationManager::instance()->getAnimation("alex", "idle")->clone();
+        setIdleAnimation();
     }
 
     if (!forceMove){
@@ -791,8 +823,14 @@ void Player::act(World & world){
         }
     }
 }
-    
+
+void Player::setPainAnimation(){
+    animation = getAnimation("pain");
+    backToIdle = true;
+}
+
 void Player::collided(Ball & ball){
+    setPainAnimation();
     velocityX = 8;
     if (ball.getVelocityX() < 0){
         velocityX *= -1;
@@ -883,7 +921,7 @@ void Hold::release(){
 
 
 void Player::doJump(){
-    animation = AnimationManager::instance()->getAnimation("alex", "jump")->clone();
+    animation = getAnimation("jump");
     velocityZ = jumpVelocity;
     /* set the z to some initial value above 0 so that it doesn't look like we
      * are hitting the ground.
@@ -895,8 +933,18 @@ double findAngle(double x1, double y1, double x2, double y2){
     return atan2(y2 - y1, x2 - x1);
 }
 
+Util::ReferenceCount<Animation> Player::getAnimation(const string & what){
+    return AnimationManager::instance()->getAnimation("alex", what)->clone();
+}
+
+void Player::setThrowAnimation(){
+    animation = getAnimation("punch");
+    backToIdle = true;
+}
+
 void Player::throwBall(World & world, Ball & ball){
     SoundManager::instance()->getSound(Filesystem::RelativePath("throw.wav"))->play();
+    setThrowAnimation();
     Util::ReferenceCount<Player> enemy = world.getTarget(*this);
     world.giveControl(enemy);
 
@@ -938,8 +986,15 @@ void Player::throwBall(World & world, Ball & ball){
     ball.doThrow(world, *this, cos(angle) * speed, sin(angle) * speed, vx);
 }
     
+void Player::setCatchAnimation(){
+    /* FIXME: bad animation here */
+    animation = getAnimation("upper-cut");
+    animation->setLoop(true);
+}
+    
 void Player::doCatch(int time){
     catching = time;
+    setCatchAnimation();
 }
 
 void Player::doAction(World & world){
@@ -955,8 +1010,14 @@ void Player::doAction(World & world){
     }
 }
 
+void Player::setGrabAnimation(){
+    animation = getAnimation("get");
+    backToIdle = true;
+}
+
 void Player::grabBall(Ball & ball){
     behavior->gotBall(ball);
+    setGrabAnimation();
     catching = 0;
     ball.grab(this);
     hasBall_ = true;
@@ -969,15 +1030,19 @@ void Player::moveLeft(double speed){
 }
 
 void Player::setWalkingAnimation(){
-    Util::ReferenceCount<Animation> walk = AnimationManager::instance()->getAnimation("alex", "walk");
+    Util::ReferenceCount<Animation> walk = getAnimation("walk");
     if (*animation != *walk){
         animation = walk->clone();
         animation->setLoop(true);
     }
 }
+    
+void Player::setIdleAnimation(){
+    animation = getAnimation("idle");
+}
 
 void Player::setRunAnimation(){
-    Util::ReferenceCount<Animation> run = AnimationManager::instance()->getAnimation("alex", "run");
+    Util::ReferenceCount<Animation> run = getAnimation("run");
     if (*animation != *run){
         animation = run->clone();
         animation->setLoop(true);
@@ -1053,21 +1118,25 @@ bool Player::isFacingRight() const {
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     int width = getWidth();
     int height = getHeight();
-    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
+    // work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 10, 5, Graphics::makeColor(32, 32, 32));
 
+    /*
     double facingX = cos(Util::radians(getFacingAngle())) * 40;
     double facingY = -sin(Util::radians(getFacingAngle())) * 40;
     work.line((int) camera.computeX(x), (int) camera.computeY(y),
               (int) camera.computeX(x + facingX), (int) camera.computeY(y + facingY),
               Graphics::makeColor(255, 0, 0));
+              */
 
     if (hasControl()){
-        work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(0, 0, 255));
+        work.translucent(0, 0, 0, 128).ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 40, 20, Graphics::makeColor(0xff, 0xda, 0x00));
     }
+    /*
     if (hasBall()){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
+    */
 
     /*
     work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), width / 2, height / 2, color);
@@ -1967,6 +2036,10 @@ Animation & Animation::operator=(const Animation & animation){
     copy(animation);
     return *this;
 }
+    
+bool Animation::isDone() const {
+    return counter == 0 && current == events.end();
+}
 
 bool Animation::operator==(const Animation & who) const {
     return id == who.id;
@@ -1995,6 +2068,13 @@ void Animation::act(){
     } else {
         if (current == events.end() && !loop){
         } else {
+            if (current == events.end()){
+                if (loop){
+                    current = events.begin();
+                } else {
+                    return;
+                }
+            }
             do{
                 (*current)->invoke(*this);
                 current++;
