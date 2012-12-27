@@ -1173,6 +1173,7 @@ void Player::runLeft(double speed){
 }
 
 void Player::moveUp(double speed){
+    setWalkingAnimation();
     this->velocityY = -speed;
     // this->y -= speed;
 }
