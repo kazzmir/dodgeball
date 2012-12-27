@@ -535,12 +535,14 @@ public:
     AIBehavior():
     wait(0),
     wantX(0),
-    wantY(0){
+    wantY(0),
+    want(false){
     }
 
     int wait;
     int wantX;
     int wantY;
+    bool want;
 
     static bool near(double x1, double y1, double x2, double y2){
         return Util::distance(x1, y1, x2, y2) < 20;
@@ -587,11 +589,14 @@ public:
                         if (wantX == 0 || wantY == 0 || Util::rnd(180) == 0){
                             wantX = Util::rnd(player.getLimit().x1, player.getLimit().x2);
                             wantY = Util::rnd(player.getLimit().y1, player.getLimit().y2);
-                        } else if (Util::rnd(100) == 0){
+                            want = true;
+                        } else if (Util::rnd(120) == 0){
                             player.doCatch();
                         }
-                        if (Util::distance(player.getX(), player.getY(), wantX, wantY) > player.walkingSpeed()){
+                        if (want && Util::distance(player.getX(), player.getY(), wantX, wantY) > player.walkingSpeed()){
                             moveTowards(player, wantX, wantY);
+                        } else {
+                            want = false;
                         }
                     }
                 }
@@ -638,6 +643,10 @@ behavior(behavior),
 animation(getAnimation("idle")){
 }
     
+bool Player::isDying() const {
+    return getHealth() < 0 && falling > 0;
+}
+
 double Player::getHealth() const {
     return health;
 }
@@ -1260,7 +1269,7 @@ int Team::mainPlayers() const {
 void Team::removeDead(World & world){
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); /**/){
         Util::ReferenceCount<Player> player = *it;
-        if (player->getHealth() > 0){
+        if (player->getHealth() > 0 || player->isDying()){
             it++;
         } else {
             if (player->hasBall()){

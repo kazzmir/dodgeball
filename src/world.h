@@ -191,6 +191,8 @@ public:
     
     void collided(Ball & ball);
 
+    bool isDying() const;
+
     bool onGround() const;
 
     double getHealth() const;
