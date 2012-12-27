@@ -731,7 +731,13 @@ void Player::act(World & world){
 
     x += velocityX;
     y += velocityY;
+
+    double oldZ = z;
     z += velocityZ;
+
+    if (oldZ > 0 && z <= 0){
+        animation = AnimationManager::instance()->getAnimation("alex", "idle")->clone();
+    }
 
     if (!forceMove){
         /* sidelined players cannot go out of their limit */
@@ -873,6 +879,7 @@ void Hold::release(){
 
 
 void Player::doJump(){
+    animation = AnimationManager::instance()->getAnimation("alex", "jump")->clone();
     velocityZ = jumpVelocity;
     /* set the z to some initial value above 0 so that it doesn't look like we
      * are hitting the ground.
@@ -1932,22 +1939,30 @@ void Animation::copy(const Animation & animation){
     frame = animation.frame;
     delay = animation.delay;
     loop = animation.loop;
-    counter = animation.counter;
+    counter = 0;
     events = animation.events;
     current = events.begin();
+    act();
 }
 
 void Animation::act(){
     if (counter > 0){
         counter -= 1;
     } else {
-        do{
-            (*current)->invoke(*this);
-            current++;
-            if (current == events.end()){
-                current = events.begin();
-            }
-        } while (counter == 0);
+        if (current == events.end() && !loop){
+        } else {
+            do{
+                (*current)->invoke(*this);
+                current++;
+                if (current == events.end()){
+                    if (loop){
+                        current = events.begin();
+                    } else {
+                        break;
+                    }
+                }
+            } while (counter == 0);
+        }
     }
 }
     
