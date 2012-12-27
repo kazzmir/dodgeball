@@ -615,13 +615,14 @@ public:
     }
 };
 
-Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline):
+Player::Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline, double health):
 x(x),
 y(y),
 z(0),
 velocityX(0),
 velocityY(0),
 velocityZ(0),
+health(health),
 hasBall_(false),
 facing(FaceRight),
 limit(box),
@@ -635,6 +636,10 @@ wantY(0),
 falling(0),
 behavior(behavior),
 animation(getAnimation("idle")){
+}
+    
+double Player::getHealth() const {
+    return health;
 }
 
 bool Player::isCatching() const {
@@ -727,8 +732,10 @@ double Player::walkingSpeed() const {
 }
 
 void Player::dropBall(Ball & ball){
-    hasBall_ = false;
-    ball.ungrab();
+    if (hasBall()){
+        hasBall_ = false;
+        ball.ungrab();
+    }
 }
 
 void Player::act(World & world){
@@ -879,6 +886,9 @@ void Player::collided(Ball & ball){
     setFallAnimation();
     falling = 40;
     velocityX = 8;
+    if (!onSideline()){
+        health -= ball.getPower();
+    }
     if (ball.getVelocityX() < 0){
         velocityX *= -1;
     }
@@ -1234,6 +1244,33 @@ side(side){
     }
 }
     
+int Team::mainPlayers() const {
+    int count = 0;
+
+    for (vector<Util::ReferenceCount<Player> >::const_iterator it = players.begin(); it != players.end(); it++){
+        Util::ReferenceCount<Player> player = *it;
+        if (!player->onSideline()){
+            count += 1;
+        }
+    }
+
+    return count;
+}
+    
+void Team::removeDead(World & world){
+    for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); /**/){
+        Util::ReferenceCount<Player> player = *it;
+        if (player->getHealth() > 0){
+            it++;
+        } else {
+            if (player->hasBall()){
+                player->dropBall(world.getBall());
+            }
+            it = players.erase(it);
+        }
+    }
+}
+    
 Team::Side Team::getSide() const {
     return side;
 }
@@ -1309,35 +1346,37 @@ const std::vector<Util::ReferenceCount<Player> > & Team::getPlayers() const {
     return players;
 }
 
-static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline){
-    return Util::ReferenceCount<Player>(new Player(x, y, color, box, behavior, sideline));
+static Util::ReferenceCount<Player> makePlayer(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline, double health){
+    return Util::ReferenceCount<Player>(new Player(x, y, color, box, behavior, sideline, health));
 }
 
 void Team::populateLeft(const Field & field){
     map.set(Keyboard::Key_Q, Cycle);
     double width = field.getWidth() / 2;
     double height = field.getHeight();
+    double health = 50;
     Graphics::Color color(Graphics::makeColor(255, 0, 0));
-    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
-    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
-    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false));
+    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health));
+    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health));
+    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health));
 
-    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
-    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true));
+    players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), true, health));
+    players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true, health));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height + 10, color, Box(field.getWidth() - width, height + 10, field.getWidth(), height + 10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true, health));
 }
 
 void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
+    double health = 50;
     Graphics::Color color(Graphics::makeColor(0x00, 0xaf, 0x64));
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health));
 
-    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new AIBehavior()), true));
-    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new AIBehavior()), true));
-    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new AIBehavior()), true));
+    players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new AIBehavior()), true, health));
+    players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new AIBehavior()), true, health));
+    players.push_back(makePlayer(width / 2, height + 10, color, Box(0, height + 10, width, height + 10), Util::ReferenceCount<Behavior>(new AIBehavior()), true, health));
 }
 
 void Team::enableControl(){
@@ -1473,7 +1512,8 @@ void Ball::ungrab(){
 }
 
 int Ball::getPower() const {
-    return power;
+    return sqrt(velocityX * velocityX + velocityY * velocityY + velocityZ * velocityZ);
+    // power;
 }
     
 double Ball::getVelocityX() const {
@@ -1663,6 +1703,11 @@ team2(Team::RightSide, field){
 
     team1.enableControl();
 }
+    
+bool World::isDone(){
+    return team1.mainPlayers() == 0 ||
+           team2.mainPlayers() == 0;
+}
 
 void World::collisionDetection(){
     if (ball.inAir()){
@@ -1753,6 +1798,9 @@ void World::run(){
     }
 
     eraseDead(floatingText);
+
+    team1.removeDead(*this);
+    team2.removeDead(*this);
 
     camera.moveTowards(ball.getX(), ball.getY());
     int xbounds = 50;

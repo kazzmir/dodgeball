@@ -179,7 +179,7 @@ public:
         FaceDownRight
     };
 
-    Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline);
+    Player(double x, double y, const Graphics::Color & color, const Box & box, const Util::ReferenceCount<Behavior> & behavior, bool sideline, double health);
 
     void act(World & world);
     void setControl(bool what);
@@ -192,6 +192,8 @@ public:
     void collided(Ball & ball);
 
     bool onGround() const;
+
+    double getHealth() const;
     
     Box collisionBox() const;
 
@@ -267,6 +269,8 @@ protected:
     double velocityY;
     double velocityZ;
 
+    double health;
+
     static const double jumpVelocity = 15;
     static double maxRunSpeed;
 
@@ -314,6 +318,11 @@ public:
     void collisionDetection(World & world, Ball & ball);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
+
+    void removeDead(World & world);
+
+    /* number of non-sideline players left */
+    int mainPlayers() const;
 
     bool onTeam(const Player * who) const;
 
@@ -429,6 +438,9 @@ public:
     void moveRight();
     void moveUp();
     void moveDown();
+
+    /* game over? */
+    bool isDone();
 
     void addFloatingText(const std::string & text, double x, double y, double z);
 

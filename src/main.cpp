@@ -40,7 +40,7 @@ public:
     }
 
     bool done(){
-        return quit;
+        return quit || world.isDone();
     }
 
     double ticks(double time){
