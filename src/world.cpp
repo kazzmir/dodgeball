@@ -1121,6 +1121,14 @@ static string toString(const X & x){
     return result;
 }
 
+static bool isFacing(double x1, double y1, double angle1, double x2, double y2){
+    double distance = Util::distance(x1, y1, x2, y2);
+    double hx = (x2 - x1) / distance;
+    double hy = (y2 - y1) / distance;
+    double dot = hx * cos(angle1) + hy * sin(angle1);
+    return dot > 0.1;
+}
+
 void Team::collisionDetection(World & world, Ball & ball){
     Box ballBox = ball.collisionBox();
     for (vector<Util::ReferenceCount<Player> >::iterator it = players.begin(); it != players.end(); it++){
@@ -1135,7 +1143,7 @@ void Team::collisionDetection(World & world, Ball & ball){
              * The ball should just bounce off of them without them taking damage
              * but they should show a slight getting-hit animation.
              */
-            if (player->isCatching()){
+            if (player->isCatching() && isFacing(player->getX(), player->getY(), Util::radians(player->getFacingAngle()), ball.getX(), ball.getY())){
                 player->grabBall(ball);
             } else if (ball.isThrown()){
                 SoundManager::instance()->getSound(Filesystem::RelativePath("beat1.wav"))->play();
