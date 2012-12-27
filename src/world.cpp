@@ -1594,7 +1594,7 @@ void Ball::draw(const Graphics::Bitmap & work, const Camera & camera){
     int middleX = camera.computeX(x);
     int middleY = camera.computeY(y - z - size);
 
-    work.ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
+    work.translucent(0, 0, 0, 128).ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
                      size, size / 2, Graphics::makeColor(32, 32, 32));
 
     work.circleFill(middleX, middleY, size,
@@ -1628,6 +1628,9 @@ team2(Team::RightSide, field){
     map.set(Keyboard::Key_DOWN, Down);
     map.set(Keyboard::Key_EQUALS, ZoomIn);
     map.set(Keyboard::Key_MINUS, ZoomOut);
+                
+    /* preload the sounds */
+    SoundManager::instance()->getSound(Filesystem::RelativePath("beat1.wav"));
 
     team1.enableControl();
 }
