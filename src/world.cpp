@@ -1001,6 +1001,22 @@ int Player::getFacingAngle() const {
     return 0;
 }
 
+bool Player::isFacingRight() const {
+    switch (facing){
+        case FaceUp:
+        case FaceUpLeft:
+        case FaceDownLeft:
+        case FaceLeft: return false;
+
+        case FaceRight:
+        case FaceUpRight:
+        case FaceDown:
+        case FaceDownRight: return true;
+    }
+
+    return true;
+}
+
 void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     int width = getWidth();
     int height = getHeight();
@@ -1033,7 +1049,7 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - z - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
     */
 
-    animation->draw(work, (int) camera.computeX(x), (int) camera.computeY(y - z), true);
+    animation->draw(work, (int) camera.computeX(x), (int) camera.computeY(y - z), isFacingRight());
 }
 
 double Player::getX() const {

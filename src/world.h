@@ -193,6 +193,8 @@ public:
 
     bool hasBall() const;
 
+    bool isFacingRight() const;
+
     bool isCatching() const;
 
     /* upper left x/y for collision detection */
