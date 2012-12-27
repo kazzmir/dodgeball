@@ -4,6 +4,8 @@
 #include "util/funcs.h"
 #include "util/font.h"
 #include "util/sound/sound.h"
+#include "util/tokenreader.h"
+#include "util/token.h"
 
 #include <map>
 #include <sstream>
@@ -602,7 +604,8 @@ catching(0),
 forceMove(false),
 wantX(0),
 wantY(0),
-behavior(behavior){
+behavior(behavior),
+animation(AnimationManager::instance()->getAnimation("alex", "idle")->clone()){
 }
 
 bool Player::isCatching() const {
@@ -678,6 +681,8 @@ double Player::walkingSpeed() const {
 }
 
 void Player::act(World & world){
+    animation->act();
+
     if (catching > 0){
         catching -= 1;
         if (catching == 0){
@@ -1014,8 +1019,9 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 20, 10, Graphics::makeColor(255, 255, 0));
         work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y), 21, 11, Graphics::makeColor(255, 255, 0));
     }
-    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), width / 2, height / 2, color);
 
+    /*
+    work.ellipseFill((int) camera.computeX(x), (int) camera.computeY(y - z - height / 2), width / 2, height / 2, color);
     int handx = camera.computeX(x + 10);
     int handy = camera.computeY(y - getHandPosition());
     Graphics::Color handColor = Graphics::makeColor(255, 255, 255);
@@ -1025,6 +1031,9 @@ void Player::draw(const Graphics::Bitmap & work, const Camera & camera){
     work.ellipseFill(handx, handy, 16, 6, handColor);
 
     work.circleFill((int) camera.computeX(x + 3), (int) camera.computeY(y - z - height * 3 / 4), 5, Graphics::makeColor(255, 255, 255));
+    */
+
+    animation->draw(work, (int) camera.computeX(x), (int) camera.computeY(y - z), true);
 }
 
 double Player::getX() const {
@@ -1817,7 +1826,153 @@ Util::ReferenceCount<Sound> SoundManager::getSound(const Path::RelativePath & pa
     return sounds[path];
 }
     
-Animation::Animation(){
+AnimationEvent::AnimationEvent(){
+}
+
+AnimationEvent::~AnimationEvent(){
+}
+
+class DelayEvent: public AnimationEvent {
+public:
+    DelayEvent(const Token * token):
+    delay(1){
+        token->view() >> delay;
+    }
+    
+    void invoke(Animation & animation){
+        animation.setDelay(delay);
+    }
+
+    int delay;
+};
+
+class FrameEvent: public AnimationEvent {
+public:
+    FrameEvent(const Filesystem::AbsolutePath & directory, const Token * token){
+        string path;
+        token->view() >> path;
+        frame = Graphics::Bitmap(directory.join(Filesystem::RelativePath(path)).path());
+    }
+    
+    void invoke(Animation & animation){
+        animation.setFrame(frame);
+    }
+
+    Graphics::Bitmap frame;
+};
+
+class OffsetEvent: public AnimationEvent {
+public:
+    OffsetEvent(const Token * token):
+    x(0),
+    y(0){
+        token->view() >> x >> y;
+    }
+    
+    void invoke(Animation & animation){
+        animation.setOffset(x, y);
+    }
+
+    int x, y;
+};
+    
+Animation::Animation(const Filesystem::AbsolutePath & directory, const Token * token):
+x(0), y(0),
+delay(0),
+counter(0),
+loop(false){
+    TokenView view = token->view();
+    while (view.hasMore()){
+        const Token * next;
+        view >> next;
+        if (*next == "basedir"){
+            string path;
+            next->view() >> path;
+            setBaseDirectory(directory.join(Filesystem::RelativePath(path)));
+        } else if (*next == "delay"){
+            events.push_back(Util::ReferenceCount<AnimationEvent>(new DelayEvent(next)));
+        } else if (*next == "frame"){
+            events.push_back(Util::ReferenceCount<AnimationEvent>(new FrameEvent(getBaseDirectory(), next)));
+        } else if (*next == "offset"){
+            events.push_back(Util::ReferenceCount<AnimationEvent>(new OffsetEvent(next)));
+        }
+    }
+
+    current = events.begin();
+}
+    
+Animation::Animation(const Animation & animation){
+    copy(animation);
+}
+
+Animation & Animation::operator=(const Animation & animation){
+    copy(animation);
+    return *this;
+}
+
+void Animation::copy(const Animation & animation){
+    x = animation.x;
+    y = animation.y;
+    frame = animation.frame;
+    delay = animation.delay;
+    loop = animation.loop;
+    counter = animation.counter;
+    events = animation.events;
+    current = events.begin();
+}
+
+void Animation::act(){
+    if (counter > 0){
+        counter -= 1;
+    } else {
+        do{
+            (*current)->invoke(*this);
+            current++;
+            if (current == events.end()){
+                current = events.begin();
+            }
+        } while (counter == 0);
+    }
+}
+    
+void Animation::draw(const Graphics::Bitmap & work, int x, int y, bool faceRight){
+    int trueX = x + this->x - frame.getWidth() / 2;
+    int trueY = y + this->y - frame.getHeight();
+    if (faceRight){
+        frame.draw(trueX, trueY, work);
+    } else {
+        frame.drawHFlip(trueX, trueY, work);
+    }
+}
+    
+Util::ReferenceCount<Animation> Animation::clone(){
+    return Util::ReferenceCount<Animation>(new Animation(*this));
+}
+
+void Animation::setLoop(bool what){
+    this->loop = what;
+}
+
+void Animation::setOffset(int x, int y){
+    this->x = x;
+    this->y = y;
+}
+
+void Animation::setFrame(const Graphics::Bitmap & bitmap){
+    this->frame = bitmap;
+    counter = delay;
+}
+
+void Animation::setDelay(int delay){
+    this->delay = delay;
+}
+
+const Filesystem::AbsolutePath & Animation::getBaseDirectory() const {
+    return baseDirectory;
+}
+    
+void Animation::setBaseDirectory(const Filesystem::AbsolutePath & path){
+    this->baseDirectory = path;
 }
 
 Animation::~Animation(){
@@ -1836,6 +1991,33 @@ AnimationManager::AnimationManager(){
 }
     
 AnimationManager::~AnimationManager(){
+}
+
+static map<string, Util::ReferenceCount<Animation> > loadAnimations(const std::string & path){
+    TokenReader reader;
+    Filesystem::AbsolutePath directory = Storage::instance().find(Filesystem::RelativePath(path));
+    Token * token = reader.readTokenFromFile(directory.join(Filesystem::RelativePath(path + ".txt")).path());
+    
+    map<string, Util::ReferenceCount<Animation> > animations;
+
+    vector<const Token*> data = token->findTokens("_/anim");
+    for (vector<const Token*>::iterator it = data.begin(); it != data.end(); it++){
+        const Token * animationToken = *it;
+        string name;
+        if (animationToken->match("_/name", name)){
+            animations[name] = new Animation(directory, animationToken);
+        }
+    }
+
+    return animations;
+}
+    
+Util::ReferenceCount<Animation> AnimationManager::getAnimation(const std::string & path, const std::string & animation){
+    if (sets.find(path) == sets.end()){
+        sets[path] = loadAnimations(path);
+    }
+
+    return sets[path][animation];
 }
     
 void AnimationManager::destroy(){

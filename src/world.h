@@ -9,6 +9,8 @@
 #include "util/file-system.h"
 #include "util/sound/sound.h"
 
+class Token;
+
 namespace Graphics{
     class Bitmap;
 }
@@ -18,6 +20,49 @@ namespace Dodgeball{
 class World;
 class Ball;
 class Player;
+
+class Animation;
+class AnimationEvent{
+public:
+    AnimationEvent();
+    virtual void invoke(Animation & animation) = 0;
+    virtual ~AnimationEvent();
+};
+
+class Animation{
+public:
+    Animation(const Filesystem::AbsolutePath & directory, const Token * token);
+    Animation(const Animation & copy);
+    Animation & operator=(const Animation & copy);
+    virtual ~Animation();
+
+    void setBaseDirectory(const Filesystem::AbsolutePath & path);
+    const Filesystem::AbsolutePath & getBaseDirectory() const;
+
+    void draw(const Graphics::Bitmap & work, int x, int y, bool faceRight);
+
+    void setOffset(int x, int y);
+    void setFrame(const Graphics::Bitmap & bitmap);
+    void setDelay(int delay);
+    void setLoop(bool what);
+
+    void act();
+
+    Util::ReferenceCount<Animation> clone();
+
+protected:
+    void copy(const Animation & animation);
+
+    std::vector<Util::ReferenceCount<AnimationEvent> > events;
+    std::vector<Util::ReferenceCount<AnimationEvent> >::iterator current;
+    Filesystem::AbsolutePath baseDirectory;
+
+    int x, y;
+    Graphics::Bitmap frame;
+    int delay;
+    int counter;
+    bool loop;
+};
 
 class Camera{
 public:
@@ -204,6 +249,7 @@ protected:
     double wantY;
 
     Util::ReferenceCount<Behavior> behavior;
+    Util::ReferenceCount<Animation> animation;
 };
 
 class Team{
@@ -383,18 +429,14 @@ public:
     Util::ReferenceCount<Sound> getSound(const Path::RelativePath & path);
 };
 
-class Animation{
-public:
-    Animation();
-    virtual ~Animation();
-};
-
 class AnimationManager{
 public:
     virtual ~AnimationManager();
 
     static Util::ReferenceCount<AnimationManager> instance();
     static void destroy();
+
+    Util::ReferenceCount<Animation> getAnimation(const std::string & path, const std::string & animation);
 
 protected:
     AnimationManager();
