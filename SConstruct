@@ -43,4 +43,5 @@ elif useAllegro5:
 archives = env.SConscript('build/util/SConscript', exports = ['env', 'options'])
 env.Append(ARCHIVES = archives)
 
-env.Program('dodgeball', ['build/%s' % x for x in source])
+dodgeball = env.Program('dodgeball', ['build/%s' % x for x in source])
+env.Depends(dodgeball, archives)
