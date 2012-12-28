@@ -191,7 +191,7 @@ public:
 
     const std::string & getName() const;
     
-    void collided(Ball & ball);
+    void collided(Ball & ball, int damage);
 
     bool isDying() const;
     bool isFalling() const;
@@ -347,6 +347,11 @@ protected:
 
 class Ball: public Drawable {
 public:
+    enum Super{
+        None,
+        Blaster
+    };
+
     Ball(double x, double y);
 
     double getX() const;
@@ -376,7 +381,7 @@ public:
 
     Box collisionBox() const;
 
-    void doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ);
+    void doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ, Super super);
     void doPass(World & world, Player & player, double velocityX, double velocityY, double velocityZ);
 
     void draw(const Graphics::Bitmap & work, const Camera & camera);
@@ -400,6 +405,7 @@ public:
     bool air;
     Player * holder;
     Team::Side thrownBy;
+    Super super;
 };
 
 class FloatingText: public Drawable {

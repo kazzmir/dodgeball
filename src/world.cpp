@@ -917,13 +917,13 @@ void Player::setFallAnimation(){
     backToIdle = false;
 }
 
-void Player::collided(Ball & ball){
+void Player::collided(Ball & ball, int damage){
     setFallAnimation();
     catching = 0;
     falling = 40;
     velocityX = 8;
     if (!onSideline()){
-        health -= ball.getPower();
+        health -= damage;
     }
     if (ball.getVelocityX() < 0){
         velocityX *= -1;
@@ -1036,7 +1036,6 @@ void Player::setThrowAnimation(){
 }
 
 void Player::throwBall(World & world, Ball & ball){
-    SoundManager::instance()->getSound(Filesystem::RelativePath("throw.wav"))->play();
     setThrowAnimation();
     Util::ReferenceCount<Player> enemy = world.getTarget(*this);
     world.giveControl(enemy);
@@ -1045,7 +1044,7 @@ void Player::throwBall(World & world, Ball & ball){
 
     double speed = 9 + sqrt(velocityX * velocityX + velocityY * velocityY);
 
-    double vx = 0;
+    double vz = 0;
     if (z > 0){
         /* distance = velocity * time
          * d = vt
@@ -1073,10 +1072,30 @@ void Player::throwBall(World & world, Ball & ball){
 
         double ground = Util::distance(getX(), getY(), enemy->getX(), enemy->getY());
 
-        vx = -(getHandPosition() + Util::rnd(-5, 5)) * speed / ground;
+        vz = -(getHandPosition() + Util::rnd(-5, 5)) * speed / ground;
     }
     
-    ball.doThrow(world, *this, cos(angle) * speed, sin(angle) * speed, vx);
+    Ball::Super super = Ball::None;
+
+    double vx = cos(angle) * speed;
+    double vy = sin(angle) * speed;
+
+    if (sqrt(vx * vx + vy * vy + vz * vz) > 16){
+        super = Ball::Blaster;
+    }
+    
+    switch (super){
+        case Ball::None: {
+            SoundManager::instance()->getSound(Filesystem::RelativePath("throw.wav"))->play();
+            break;
+        }
+        default: {
+            SoundManager::instance()->getSound(Filesystem::RelativePath("super.wav"))->play();
+            break;
+        }
+    }
+
+    ball.doThrow(world, *this, vx, vy, vz, super);
 }
     
 void Player::setCatchAnimation(){
@@ -1373,9 +1392,10 @@ void Team::collisionDetection(World & world, Ball & ball){
                 player->grabBall(ball);
             } else if (ball.isThrown()){
                 SoundManager::instance()->getSound(Filesystem::RelativePath("beat1.wav"))->play();
-                player->collided(ball);
+                int damage = ball.getPower();
+                player->collided(ball, damage);
                 ball.collided(*player);
-                world.addFloatingText(toString(ball.getPower()), player->getX(), player->getY(), player->getZ() + 5);
+                world.addFloatingText(toString(damage), player->getX(), player->getY(), player->getZ() + 5);
             }
 
             /* cannot hit multiple players. TODO: some specials can hit multiple players */
@@ -1396,11 +1416,11 @@ void Team::populateLeft(const Field & field){
     map.set(Keyboard::Key_Q, Cycle);
     double width = field.getWidth() / 2;
     double height = field.getHeight();
-    double health = 50;
+    double health = 40;
     Graphics::Color color(Graphics::makeColor(255, 0, 0));
-    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health));
-    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health));
-    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health));
+    players.push_back(makePlayer(width / 5, height / 2, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health + Util::rnd(20)));
+    players.push_back(makePlayer(width / 2, height / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health + Util::rnd(20)));
+    players.push_back(makePlayer(width / 2, height * 3 / 4, color, Box(0, 0, width, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), false, health + Util::rnd(20)));
 
     players.push_back(makePlayer(field.getWidth() - 0, height / 2, color, Box(field.getWidth() - 0, 0, field.getWidth() - 0, height), Util::ReferenceCount<Behavior>(new HumanBehavior()), true, health));
     players.push_back(makePlayer(field.getWidth() - width / 2, -10, color, Box(field.getWidth() - width, -10, field.getWidth(), -10), Util::ReferenceCount<Behavior>(new HumanBehavior()), true, health));
@@ -1410,11 +1430,11 @@ void Team::populateLeft(const Field & field){
 void Team::populateRight(const Field & field){
     double width = field.getWidth() / 2;
     double height = field.getHeight();
-    double health = 50;
+    double health = 40;
     Graphics::Color color(Graphics::makeColor(0x00, 0xaf, 0x64));
-    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health));
-    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health));
+    players.push_back(makePlayer(field.getWidth() - width / 5, height / 2, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health + Util::rnd(20)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health + Util::rnd(20)));
+    players.push_back(makePlayer(field.getWidth() - width / 2, height * 3 / 4, color, Box(field.getWidth() - width, 0, field.getWidth(), height), Util::ReferenceCount<Behavior>(new AIBehavior()), false, health + Util::rnd(20)));
 
     players.push_back(makePlayer(-10, height / 2, color, Box(-10, 0, -10, height), Util::ReferenceCount<Behavior>(new AIBehavior()), true, health));
     players.push_back(makePlayer(width / 2, -10, color, Box(0, -10, width, -10), Util::ReferenceCount<Behavior>(new AIBehavior()), true, health));
@@ -1545,6 +1565,7 @@ void Ball::grab(Player * holder){
     grabbed = true;
     air = false;
     thrown = false;
+    super = None;
     this->holder = holder;
 }
 
@@ -1554,7 +1575,11 @@ void Ball::ungrab(){
 }
 
 int Ball::getPower() const {
-    return sqrt(velocityX * velocityX + velocityY * velocityY + velocityZ * velocityZ);
+    switch (super){
+        case None: return sqrt(velocityX * velocityX + velocityY * velocityY + velocityZ * velocityZ);
+        case Blaster: return Util::rnd(15, 30);
+    }
+    return 0;
     // power;
 }
     
@@ -1568,6 +1593,7 @@ double Ball::getVelocityY() const {
 
 void Ball::collided(Player & player){
     thrown = false;
+    super = None;
     air = false;
     timeInAir = 0;
     velocityX = -velocityX / 2;
@@ -1588,16 +1614,28 @@ bool Ball::isThrown() const {
     return thrown;
 }
 
-void Ball::doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ){
+void Ball::doThrow(World & world, Player & player, double velocityX, double velocityY, double velocityZ, Super super){
     power = 3;
+    this->super = super;
     thrownBy = world.findTeam(player);
     ungrab();
     air = true;
     thrown = true;
     timeInAir = 200;
-    this->velocityX = velocityX;
-    this->velocityY = velocityY;
-    this->velocityZ = velocityZ;
+    switch (super){
+        case None: {
+            this->velocityX = velocityX;
+            this->velocityY = velocityY;
+            this->velocityZ = velocityZ;
+            break;
+        }
+        case Blaster: {
+            this->velocityX = velocityX;
+            this->velocityY = velocityY;
+            this->velocityZ = velocityZ;
+            break;
+        }
+    }
 }
 
 void Ball::doPass(World & world, Player & player, double velocityX, double velocityY, double velocityZ){
@@ -1605,6 +1643,7 @@ void Ball::doPass(World & world, Player & player, double velocityX, double veloc
     thrownBy = world.findTeam(player);
     timeInAir = 0;
     thrown = false;
+    super = None;
     air = true;
     this->velocityX = velocityX;
     this->velocityY = velocityY;
@@ -1647,6 +1686,7 @@ void Ball::act(const Field & field){
         } else {
             /* When the ball hits the ground its not being thrown anymore */
             thrown = false;
+            super = None;
             air = false;
             timeInAir = 0;
 
@@ -1691,10 +1731,14 @@ void Ball::act(const Field & field){
             x = field.getWidth() + 10;
         }
 
+        thrown = false;
+        super = None;
         timeInAir = 0;
         velocityX = -velocityX / 2;
     }
     if (y < -10 || y > field.getHeight() + 10){
+        thrown = false;
+        super = None;
         timeInAir = 0;
         velocityY = -velocityY / 2;
     }
@@ -1708,18 +1752,27 @@ void Ball::draw(const Graphics::Bitmap & work, const Camera & camera){
     work.translucent(0, 0, 0, 128).ellipseFill(camera.computeX(x + size / 2), camera.computeY(y),
                      size, size / 2, Graphics::makeColor(32, 32, 32));
 
-    work.circleFill(middleX, middleY, size,
-                    Graphics::makeColor(255, 255, 255));
+    switch (super){
+        case None: {
+            work.circleFill(middleX, middleY, size,
+                            Graphics::makeColor(255, 255, 255));
 
-    double radians = Util::radians(angle);
-    work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
-              middleX + cos(radians) * size, middleY + sin(radians) * size,
-              Graphics::makeColor(0, 0, 0));
+            double radians = Util::radians(angle);
+            work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
+                      middleX + cos(radians) * size, middleY + sin(radians) * size,
+                      Graphics::makeColor(0, 0, 0));
 
-    radians = Util::radians(angle + 90);
-    work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
-              middleX + cos(radians) * size, middleY + sin(radians) * size,
-              Graphics::makeColor(0, 0, 0));
+            radians = Util::radians(angle + 90);
+            work.line(middleX - cos(radians) * size, middleY - sin(radians) * size,
+                      middleX + cos(radians) * size, middleY + sin(radians) * size,
+                      Graphics::makeColor(0, 0, 0));
+            break;
+        }
+        case Blaster: {
+            work.ellipseFill(middleX, middleY, size, size / 2, Graphics::makeColor(255, 255, 0));
+            break;
+        }
+    }
 }
     
 Box Ball::collisionBox() const {
@@ -1742,6 +1795,8 @@ team2(Team::RightSide, field){
                 
     /* preload the sounds */
     SoundManager::instance()->getSound(Filesystem::RelativePath("beat1.wav"));
+    SoundManager::instance()->getSound(Filesystem::RelativePath("super.wav"));
+    SoundManager::instance()->getSound(Filesystem::RelativePath("throw.wav"));
 
     team1.enableControl();
 }

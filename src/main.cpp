@@ -55,7 +55,6 @@ public:
 
         void press(const Input & out, Keyboard::unicode_t unicode){
             switch (out){
-                
                 case Quit: {
                     main.quit = true;
                     break;
@@ -75,11 +74,20 @@ public:
     Dodgeball::World world;
 };
 
-static void run(){
+static bool run(){
     Keyboard::pushRepeatState(false);
     Main main;
     Util::standardLoop(main, main);
     Keyboard::popRepeatState();
+    return main.quit;
+}
+
+static void showWin(){
+    Graphics::Bitmap work(320, 240);
+    work.clear();
+    Font::getDefaultFont(40, 40).printf(320 / 2 - 70, 120 - 20, Graphics::makeColor(255, 255, 255), work, "You win!", 0);
+    work.BlitToScreen();
+    Util::restSeconds(2);
 }
 
 int main(int argc, char ** argv){
@@ -88,9 +96,15 @@ int main(int argc, char ** argv){
     Util::Parameter<Util::ReferenceCount<Path::RelativePath> > font(Font::defaultFont, Util::ReferenceCount<Path::RelativePath>(new Path::RelativePath("arial.ttf")));
     InputManager input;
     try{
-        run();
+        while (!run()){
+            showWin();
+        }
     } catch (const ShutdownException & fail){
         Global::debug(0) << "Shutdown" << std::endl;
+    } catch (const Exception::Base & fail){
+        Global::debug(0) << "Problem: " << fail.getTrace() << std::endl;
+    } catch (...){
+        Global::debug(0) << "Uncaught exception" << std::endl;
     }
 
     Dodgeball::SoundManager::destroy();
