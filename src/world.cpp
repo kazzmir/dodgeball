@@ -1361,7 +1361,7 @@ void Team::collisionDetection(World & world, Ball & ball){
         Util::ReferenceCount<Player> player = *it;
         Box playerBox = player->collisionBox();
         
-        if (fabs(player->getY() - ball.getY()) <= 5 &&
+        if (fabs(player->getY() - ball.getY()) <= 8 &&
             boxCollide(player->getX1(), player->getY1(), playerBox,
                        ball.getX1(), ball.getY1(), ballBox)){
 

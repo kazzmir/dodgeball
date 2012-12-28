@@ -24,6 +24,7 @@ def allegro5Env(env):
     env.Append(CPPDEFINES = ['USE_ALLEGRO5'])
 
 env.Append(CCFLAGS = ['-g3'])
+# env.Append(CCFLAGS = ['-O2'])
 
 env.Append(CPPPATH = '#build')
 env['LINKCOM'] = '$CXX $LINKFLAGS $SOURCES -Wl,--start-group $ARCHIVES $_LIBDIRFLAGS $_LIBFLAGS -Wl,--end-group -o $TARGET'
